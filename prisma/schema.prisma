@@ -1,0 +1,75 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// 投稿者
+model User {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now()) @map("created_at")
+  email     String   @unique
+  role      String
+  uploadedImages Image[] @relation("Uploader")
+
+  @@map("users")
+}
+
+// 投稿が属する団体
+model Group {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now()) @map("created_at")
+  name      String
+  images    Image[] @relation("Group")
+
+  @@map("groups")
+}
+
+// タグ
+model Tag {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  imageTags ImageTag[]
+  
+  @@map("tags")
+}
+
+// 画像
+model Image {
+  id              String   @id @default(uuid())
+  createdAt       DateTime @default(now()) @map("created_at")
+  storageUrl      String   @map("storage_url")
+  fileHash        String   @map("file_hash")
+  title           String
+  description     String
+  status          String
+  rejectionReason String? @map("rejection_reason")
+
+  uploader      User   @relation("Uploader", fields: [uploaderId], references: [id])
+  uploaderId    String @map("uploader_id")
+
+  group         Group  @relation("Group", fields: [groupId], references: [id])
+  groupId       String @map("group_id")
+
+  imageTags ImageTag[]
+
+  @@map("images")
+}
+
+// 画像とタグを紐づける中間テーブル
+model ImageTag {
+  imageId String
+  tagId   String
+
+  image Image @relation(fields: [imageId], references: [id])
+  tag   Tag   @relation(fields: [tagId], references: [id])
+
+  @@id([imageId, tagId])
+  @@map("image_tags")
+}
