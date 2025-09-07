@@ -1,36 +1,60 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 高専祭デジタルサイネージシステム
 
-## Getting Started
+高専祭の来場者向けに、展示やイベント情報をリアルタイムで表示するデジタルサイネージシステムです。
 
-First, run the development server:
+## プロジェクト概要
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+- **目的**: 高専祭の来場者体験向上、情報の効率的な伝達、実践的な開発経験の獲得。
+- **ターゲットユーザー**: 主に来場者、緊急時は学生や教員。
+- **技術スタック**:
+  - **フロントエンド**: Next.js, Tailwind CSS
+  - **バックエンド**: Supabase
+  - **データベース**: SQLite (ローカル開発用), Prisma
+  - **UI**: Shadcn UI
+  - **ハードウェア**: Raspberry Pi 4B/5
+
+## 開発環境のセットアップ
+
+1. **プロジェクトのクローン**:
+
+```
+git clone [リポジトリ URL]
+cd kosen-festival-signage-system
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+2. **依存関係のインストール**:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```
+npm install
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+3. **データベースのセットアップ**:
 
-## Learn More
+```
+npx prisma db push
+```
 
-To learn more about Next.js, take a look at the following resources:
+4. **開発サーバーの起動**:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```
+npm run dev
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- 開発サーバーは `http://localhost:3000` で起動します。
+- Prisma Studio を使ってデータベースを操作するには、別のターミナルで `npx prisma studio` を実行します。
 
-## Deploy on Vercel
+## 開発フロー
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+- **Git ブランチモデル**: main ブランチは常に本番環境にデプロイ可能な状態を保ちます。新機能の開発は、feature/[機能名] のようなブランチを切って行い、開発が完了したらプルリクエストを作成します。
+- **コミットメッセージ**: feat: 新機能の追加 や fix: バグの修正 のような、わかりやすい形式で記述します。
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## 主要なコマンド
+
+- **開発サーバー起動**: `npm run dev`
+- **ビルド**: `npm run build`
+- **データベース更新**: `npx prisma db push`
+- **データベース管理**: `npx prisma studio`
+
+## ライセンス
+
+このプロジェクトは MIT ライセンスの下で公開されています。
