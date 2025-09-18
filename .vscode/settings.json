@@ -1,0 +1,21 @@
+{
+  // 使用するフォーマッターを `prettier` に設定（VSCode 拡張 `esbenp.prettier-vscode`）
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+
+  // 保存時に自動でコードフォーマットを適用
+  "editor.formatOnSave": true,
+
+  // 貼り付け時に自動でコードフォーマットを適用
+  "editor.formatOnPaste": true,
+
+  // 保存時に不足している `import` を明示的に追加
+  "editor.codeActionsOnSave": {
+    "source.addMissingImports": "explicit"
+  },
+
+  // JavaScript の `import` 文のモジュール指定を相対パスではなく、非相対（絶対パスやエイリアス）にする
+  "javascript.preferences.importModuleSpecifier": "non-relative",
+
+  // TypeScript の `import` 文のモジュール指定を相対パスではなく、非相対（絶対パスやエイリアス）にする
+  "typescript.preferences.importModuleSpecifier": "non-relative"
+}
