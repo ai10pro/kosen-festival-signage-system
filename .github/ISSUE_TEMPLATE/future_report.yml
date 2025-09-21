@@ -1,0 +1,27 @@
+# future_report.yml
+name: 実装・追加
+description: 新機能の実装・追加はこちら
+title: "Feature: "
+labels: future
+body:
+  - type: textarea
+    id: overview
+    attributes:
+      label: 概要
+      description: 新機能の概要を記載してください。
+    validations:
+      required: true
+  - type: textarea
+    id: supplement
+    attributes:
+      label: 補足
+      description: 補足事項があれば記載してください。
+    validations:
+      required: false
+  - type: checkbox
+    id: checklist
+    attributes:
+      label: タスク
+      description: 実装にあたってのタスクを記載してください。
+    validations:
+      required: true
