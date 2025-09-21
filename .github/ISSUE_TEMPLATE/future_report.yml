@@ -1,8 +1,9 @@
-# future_report.yml
+# enhancement_request.yml
+---
 name: 実装・追加
-description: 新機能の実装・追加はこちら
+about: 新機能の実装・追加はこちら
 title: "Feature: "
-labels: future
+labels: ["feature"]
 body:
   - type: textarea
     id: overview
@@ -18,10 +19,13 @@ body:
       description: 補足事項があれば記載してください。
     validations:
       required: false
-  - type: checkbox
+  - type: checkboxes
     id: checklist
     attributes:
       label: タスク
       description: 実装にあたってのタスクを記載してください。
+      options:
+        - label: タスク1
+        - label: タスク2
     validations:
-      required: true
+      required: false
