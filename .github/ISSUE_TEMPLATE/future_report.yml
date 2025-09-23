@@ -9,36 +9,34 @@ body:
     attributes:
       label: 概要
       description: |
-        不具合の概要を記載してください。
-        見た目に関係する場合は、スクリーンショット等を貼り付けてください。
-    validations:
-      required: true
-  - type: input
-    id: environment
-    attributes:
-      label: 再現環境
-      description: |
-        再現環境を記載してください。
-        例：
-        Chrome + Windows
-        Edge + Windows
-        Chrome + macOS
-        Safari + macOS
-    validations:
-      required: true
-  - type: textarea
-    id: process
-    attributes:
-      label: 再現手順
-      description: 不具合を再現させる手順を記載してください。
-      value: |
-        1. 
-        2. 
-        3. 
-        ...
+        新機能の概要を記載してください
     validations:
       required: true
   - type: textarea
     id: supplement
     attributes:
       label: 補足
+      description: |
+        補足事項があれば記載してください．また，見た目に関係する場合はスクリーンショット等を貼り付けてください．
+    validations:
+      required: true
+  - type: textarea
+    id: task
+    attributes:
+      label: タスク
+      description: 実装・追加するタスクを記載してください．
+      value: |
+        - []
+        - []
+        - []
+        ...
+    validations:
+      required: true
+  - type: textarea
+    id: manager
+    attributes:
+      label: 担当者
+      description: Issue作成者，実装担当者（いれば）を記載してください．
+      value: |
+        issue作成者: @
+        実装担当者: @

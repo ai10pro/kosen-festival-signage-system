@@ -29,3 +29,11 @@ body:
     id: supplement
     attributes:
       label: 補足
+  - type: textarea
+    id: manager
+    attributes:
+      label: 担当者
+      description: Issue作成者，実装担当者（いれば）を記載してください．
+      value: |
+        issue作成者: @
+        実装担当者: @
