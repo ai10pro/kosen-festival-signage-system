@@ -26,9 +26,9 @@ body:
       label: タスク
       description: 実装・追加するタスクを記載してください．
       value: |
-        - []
-        - []
-        - []
+        - [ ]
+        - [ ]
+        - [ ]
         ...
     validations:
       required: true
