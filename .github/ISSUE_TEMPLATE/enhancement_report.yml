@@ -1,7 +1,8 @@
 # enhancement_request.yml
 name: 改善・リファクタ
 description: 改善・リファクタはこちら
-labels: refactor
+labels: enhancement
+title: "Enhancement: "
 body:
   - type: textarea
     id: background
