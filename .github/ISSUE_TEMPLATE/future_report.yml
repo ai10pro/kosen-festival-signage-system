@@ -1,8 +1,8 @@
 # future_request.yml
 name: 実装・追加
 about: 新機能の実装・追加はこちら
+labels: feature
 title: "Feature: "
-labels: ["feature"]
 body:
   - type: textarea
     id: overview
