@@ -30,9 +30,27 @@ npm install
 
 3. **データベースのセットアップ**:
 
+`.env`ファイルを作成し以下のように環境変数を定義する。
+
+```
+DATABASE_URL="file:./dev.db"
+```
+
+DBのスキーマ変更後や、DBの削除後には以下コマンドを順に実行し、DBの初期化を行う。
+
 ```
 npx prisma db push
+npx prisma generate
+npx prisma db seed
 ```
+
+prismaのGUI管理には
+
+```
+npx prisma studio
+```
+
+を実行することで行える。
 
 4. **開発サーバーの起動**:
 
