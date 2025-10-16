@@ -1,5 +1,5 @@
 // This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
+// learn more about it in the docs: https://pris.lyd/prisma-schema
 
 generator client {
   provider = "prisma-client-js"
@@ -10,66 +10,206 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// 投稿者
+// ------------------------------
+// Enum定義
+// ------------------------------
+
+// ユーザーの権限レベル
+enum Role {
+  ADMIN         // 全体管理者
+  PASSWORD_RESETTER // パスワードリセット専用アカウント
+  EXHIBITOR     // 展示団体担当者
+}
+
+// Content全体の承認ステータス
+enum ContentStatus {
+  PENDING   // 承認待ち
+  APPROVED  // 承認済み
+  REJECTED  // 非承認
+}
+
+// サイネージの表示モード
+enum SignageDisplayMode {
+  IMAGE_SLIDESHOW // 画像スライドショー (デフォルト)
+  EMERGENCY_TEXT  // 緊急テロップ表示（拡張用）
+  STATIC_MAP      // 静的なマップ表示（拡張用）
+}
+
+// ------------------------------
+// ユーザー・団体・タグ
+// ------------------------------
+
+// 投稿者 (ログインユーザー)
 model User {
-  id        String   @id @default(uuid())
-  createdAt DateTime @default(now()) @map("created_at")
-  email     String   @unique
-  role      String
-  uploadedImages Image[] @relation("Uploader")
+  id                    String   @id @default(uuid())
+  createdAt             DateTime @default(now()) @map("created_at")
+  updatedAt             DateTime @updatedAt @map("updated_at")
+
+  username              String   @unique 
+  role                  Role
+
+  // 認証情報
+  passwordHash          String   @map("password_hash")
+  initialPasswordHash   String   @map("initial_password_hash")
+  isPasswordSet         Boolean  @default(false) @map("is_password_set")
+  
+  // リレーション
+  uploadedContents      Content[] @relation("Uploader")
+  editedContents        Content[] @relation("Editor")
+  userGroups            UserGroup[]
 
   @@map("users")
 }
 
-// 投稿が属する団体
+// 団体 (展示団体)
 model Group {
   id        String   @id @default(uuid())
   createdAt DateTime @default(now()) @map("created_at")
-  name      String
-  images    Image[] @relation("Group")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  name      String   @unique
+  
+  contents  Content[] @relation("Group")
+  userGroups UserGroup[]
 
   @@map("groups")
 }
 
-// タグ
+// タグ (分類分け)
 model Tag {
-  id        String   @id @default(uuid())
-  name      String   @unique
-  imageTags ImageTag[]
+  id          String     @id @default(uuid())
+  name        String     @unique
   
+  contentTags ContentTag[] 
+  signageTags SignageTag[]
+
   @@map("tags")
 }
 
-// 画像
+// ------------------------------
+// コンテンツ管理（Content/Image）
+// ------------------------------
+
+// Content: 展示全体を管理する
+model Content {
+  id              String        @id @default(uuid())
+  createdAt       DateTime      @default(now()) @map("created_at")
+  updatedAt       DateTime      @updatedAt @map("updated_at")
+  title           String
+  description     String
+  status          ContentStatus 
+  rejectionReason String?       @map("rejection_reason")
+
+  uploader      User          @relation("Uploader", fields: [uploaderId], references: [id])
+  uploaderId    String        @map("uploader_id") 
+
+  group         Group         @relation("Group", fields: [groupId], references: [id])
+  groupId       String        @map("group_id") 
+
+  editors       User[]        @relation("Editor")
+
+  images          Image[]       
+  contentTags     ContentTag[]
+  signageContents SignageContent[]
+
+  @@map("contents")
+}
+
+// Image: Contentに紐づく個々の画像ファイルを管理する
 model Image {
   id              String   @id @default(uuid())
   createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
   storageUrl      String   @map("storage_url")
   fileHash        String   @map("file_hash")
-  title           String
-  description     String
-  status          String
-  rejectionReason String? @map("rejection_reason")
 
-  uploader      User   @relation("Uploader", fields: [uploaderId], references: [id])
-  uploaderId    String @map("uploader_id")
+  content         Content  @relation(fields: [contentId], references: [id])
+  contentId       String   @map("content_id")
 
-  group         Group  @relation("Group", fields: [groupId], references: [id])
-  groupId       String @map("group_id")
-
-  imageTags ImageTag[]
+  order           Int
 
   @@map("images")
 }
 
-// 画像とタグを紐づける中間テーブル
-model ImageTag {
-  imageId String
-  tagId   String
 
-  image Image @relation(fields: [imageId], references: [id])
-  tag   Tag   @relation(fields: [tagId], references: [id])
+// ------------------------------
+// サイネージ端末・設定・稼働状況
+// ------------------------------
 
-  @@id([imageId, tagId])
-  @@map("image_tags")
+// Signage: 各ラズパイ端末の設定を管理する
+model Signage {
+  id              String         @id @default(uuid())
+  createdAt       DateTime       @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+  locationName    String         @map("location_name")
+  uniqueKey       String         @unique @map("unique_key") 
+  
+  // ★ Enumに変更し、初期値を画像スライドショーに設定
+  displayMode     SignageDisplayMode @default(IMAGE_SLIDESHOW) @map("display_mode")
+  
+  // ★ Heartbeat情報を直接追加 (稼働履歴ではなく最新の状態をトラッキング)
+  lastActiveAt    DateTime?      @map("last_active_at") // 最後に信号が送られてきた日時
+  statusInfo      String?        @map("status_info")    // 拡張用
+
+  contentSettings SignageContent[] 
+  contentTags     SignageTag[]     
+
+  @@map("signages")
+}
+
+// ------------------------------
+// 中間テーブル群
+// ------------------------------
+
+// UserGroup: ユーザーが所属する団体の中間テーブル (多対多)
+model UserGroup {
+  userId  String
+  groupId String
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  group Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@id([userId, groupId])
+  @@map("user_groups")
+}
+
+// ContentTag: コンテンツとタグを紐づける中間テーブル (多対多)
+model ContentTag {
+  contentId String
+  tagId     String
+
+  content Content @relation(fields: [contentId], references: [id], onDelete: Cascade)
+  tag     Tag     @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([contentId, tagId])
+  @@map("content_tags")
+}
+
+// SignageTag: サイネージとタグを紐づける中間テーブル (フィルタリング用)
+model SignageTag {
+  signageId String
+  tagId     String
+
+  signage   Signage @relation(fields: [signageId], references: [id], onDelete: Cascade)
+  tag       Tag     @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([signageId, tagId])
+  @@map("signage_tags")
+}
+
+// SignageContent: サイネージに表示するコンテンツとその順序を管理する中間テーブル
+model SignageContent {
+  signageId String
+  contentId String
+  
+  order     Int // コンテンツのサイネージ上での表示順序
+  
+  signage   Signage @relation(fields: [signageId], references: [id], onDelete: Cascade)
+  content   Content @relation(fields: [contentId], references: [id], onDelete: Cascade)
+  
+  @@id([signageId, contentId])
+  @@map("signage_contents")
 }
