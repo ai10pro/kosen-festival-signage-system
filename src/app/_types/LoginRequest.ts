@@ -1,8 +1,9 @@
 import { z } from "zod";
+import { userNameSchema, passwordSchema } from "./CommonASchemas";
 
 export const LoginRequestSchema = z.object({
-  userId: z.string().min(1),
-  password: z.string().min(1),
+  userName: userNameSchema,
+  password: passwordSchema,
 });
 
 export type LoginRequest = z.infer<typeof LoginRequestSchema>;
