@@ -7,3 +7,5 @@ export const userNameSchema = z
 export const passwordSchema = z
   .string()
   .min(8, { message: "パスワードは8文字以上で入力してください" });
+
+export const roleSchema = z.enum(["admin", "user"]);
