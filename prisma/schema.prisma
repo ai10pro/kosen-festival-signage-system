@@ -19,6 +19,8 @@ enum Role {
   ADMIN         // 全体管理者
   PASSWORD_RESETTER // パスワードリセット専用アカウント
   EXHIBITOR     // 展示団体担当者
+  OBSERVER      // 検閲者アカウント
+  VIEWER        // 閲覧専用アカウント
 }
 
 // Content全体の承認ステータス
