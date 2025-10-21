@@ -19,6 +19,8 @@ enum Role {
   ADMIN         // 全体管理者
   PASSWORD_RESETTER // パスワードリセット専用アカウント
   EXHIBITOR     // 展示団体担当者
+  OBSERVER      // 検閲者アカウント
+  VIEWER        // 閲覧専用アカウント
 }
 
 // Content全体の承認ステータス
@@ -57,7 +59,7 @@ model User {
   uploadedContents      Content[] @relation("Uploader")
   editedContents        Content[] @relation("Editor")
   userGroups            UserGroup[]
-
+  sessions              Session[]
   @@map("users")
 }
 
@@ -212,4 +214,17 @@ model SignageContent {
   
   @@id([signageId, contentId])
   @@map("signage_contents")
+}
+
+// ------------------------------
+// セッション管理（認証用）
+// ------------------------------
+model Session {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now()) @map("created_at")
+  expiresAt DateTime @map("expires_at")
+  
+  @@map("sessions")
 }
