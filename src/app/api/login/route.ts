@@ -1,9 +1,9 @@
 import { prisma } from "@/libs/prisma";
 import { loginRequestSchema } from "@/app/_types/LoginRequest";
-
 import type { ApiResponse } from "@/app/_types/ApiResponse";
 import { NextRequest, NextResponse } from "next/server";
 
+import { createSession } from "@/app/_helper/createSession";
 import bcrypt from "bcryptjs";
 
 export const dynamic = "force-dynamic";
@@ -56,6 +56,11 @@ export const POST = async (req: NextRequest) => {
     }
 
     // セッションベース認証処理
+    const tokenMaxAgeSecond = 60 * 60 * 24 * 7; // 7日間
+    await createSession(user.id, tokenMaxAgeSecond);
+    // const res: ApiResponse<null> = {
+    //   success: true,
+    //   payload: userProfileSchma.parse(user),
 
     // 成功レスポンス
   } catch (e) {
