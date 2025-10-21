@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { userNameSchema, passwordSchema } from "./CommonASchemas";
+import { userNameSchema, passwordSchema } from "./CommonSchemas";
 
 export const loginRequestSchema = z.object({
   userName: userNameSchema,
