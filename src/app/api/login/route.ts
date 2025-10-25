@@ -1,5 +1,7 @@
 import { prisma } from "@/libs/prisma";
 import { loginRequestSchema } from "@/app/_types/LoginRequest";
+import { userProfileSchema } from "@/app/_types/UserProfile";
+import type { UserProfile } from "@/app/_types/UserProfile";
 import type { ApiResponse } from "@/app/_types/ApiResponse";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -31,6 +33,12 @@ export const POST = async (req: NextRequest) => {
       where: {
         username: loginRequest.userName,
       },
+      select: {
+        id: true,
+        username: true,
+        passwordHash: true,
+        role: true,
+      },
     });
     if (!user) {
       const res: ApiResponse<null> = {
@@ -58,9 +66,12 @@ export const POST = async (req: NextRequest) => {
     // セッションベース認証処理
     const tokenMaxAgeSecond = 60 * 60 * 24 * 7; // 7日間
     await createSession(user.id, tokenMaxAgeSecond);
-    // const res: ApiResponse<null> = {
-    //   success: true,
-    //   payload: userProfileSchma.parse(user),
+    const res: ApiResponse<UserProfile> = {
+      success: true,
+      payload: userProfileSchema.parse(user),
+      message: "",
+    };
+    return NextResponse.json(res);
 
     // 成功レスポンス
   } catch (e) {
