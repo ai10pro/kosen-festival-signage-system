@@ -2,7 +2,8 @@ import { cookies } from "next/headers";
 import { prisma } from "@/libs/prisma";
 
 // 環境変数からランダムなCookie名を取得
-const SESSION_COOKIE_NAME = process.env.SESSION_COOKIE_NAME || "default_session_id";
+const SESSION_COOKIE_NAME =
+  process.env.SESSION_COOKIE_NAME || "default_session_id";
 
 /**
  * セッションを作成し、そのセッションIDをクッキーに保存する。
@@ -29,8 +30,8 @@ export const createSession = async (
     httpOnly: true,
     sameSite: "lax",
     maxAge: tokenMaxAgeSecond,
-    secure: process.env.NODE_ENV === 'production',
+    secure: process.env.NODE_ENV === "production",
   });
 
   return session.id;
-}
+};

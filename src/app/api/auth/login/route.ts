@@ -5,7 +5,7 @@ import type { UserProfile } from "@/app/_types/UserProfile";
 import type { ApiResponse } from "@/app/_types/ApiResponse";
 import { NextRequest, NextResponse } from "next/server";
 
-import { createSession } from "@/app/_helper/createSession";
+import { createSession } from "@/app/_helper/session";
 import bcrypt from "bcryptjs";
 
 export const dynamic = "force-dynamic";
