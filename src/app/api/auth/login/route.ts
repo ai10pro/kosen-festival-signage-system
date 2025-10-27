@@ -8,9 +8,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { createSession } from "@/app/_helper/session";
 import bcrypt from "bcryptjs";
 
-export const dynamic = "force-dynamic";
-export const fetchCache = "no-store";
-export const revalidate = 0;
+export const config = {
+  dynamic: "force-dynamic",
+  fetchCache: "no-store",
+  revalidate: 0,
+};
 
 export const POST = async (req: NextRequest) => {
   try {

@@ -4,10 +4,11 @@ import type { ApiResponse } from "@/app/_types/ApiResponse";
 import { getSessionId } from "@/app/_helper/session";
 import { deleteSession } from "@/app/_helper/session";
 
-export const dynamic = "force-dynamic";
-export const fetchCache = "no-store";
-export const revalidate = 0;
-
+export const config = {
+  dynamic: "force-dynamic",
+  fetchCache: "no-store",
+  revalidate: 0,
+};
 export const DELETE = async () => {
   try {
     const sessionId = await getSessionId();
