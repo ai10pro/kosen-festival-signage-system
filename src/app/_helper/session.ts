@@ -48,6 +48,28 @@ export const getSessionId = async (): Promise<string | null> => {
   return cookieStore.get(SESSION_COOKIE_NAME)?.value ?? null;
 };
 
+// verifySession関数
+/**
+ * セッションIDを検証し、有効な場合はユーザーIDを返す。
+ * @returns ユーザーIDまたはnull
+ */
+export const verifySession = async (): Promise<string | null> => {
+  const sessionId = await getSessionId();
+  if (!sessionId) return null;
+
+  const session = await prisma.session.findUnique({
+    where: { id: sessionId },
+  });
+
+  const now = new Date();
+  if (!session || session.expiresAt <= now) {
+    // 無効なセッションは削除
+    await deleteSession(sessionId);
+    return null;
+  }
+
+  return session.userId;
+};
 
 // refreshSession関数
 /**
@@ -79,9 +101,8 @@ export const refreshSession = async (
       httpOnly: true,
       sameSite: "lax",
       maxAge: tokenMaxAgeSecond,
-      secure: process.env.NODE_ENV === 'production',
+      secure: process.env.NODE_ENV === "production",
     });
-
   } catch (e) {
     console.error(`[Refresh] Failed to refresh session ${sessionId}:`, e);
     // 延長失敗時はセッション削除を試みる (セキュリティのため)
@@ -110,5 +131,3 @@ export const deleteSession = async (sessionId: string): Promise<void> => {
     secure: process.env.NODE_ENV === "production",
   });
 };
-
-
