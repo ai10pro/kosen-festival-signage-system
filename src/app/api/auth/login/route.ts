@@ -72,6 +72,7 @@ export const POST = async (req: NextRequest) => {
       payload: userProfileSchema.parse(user),
       message: "",
     };
+    console.log(`User ${user.username} logged in successfully.`); // ログイン成功の記録
     return NextResponse.json(res);
 
     // 成功レスポンス

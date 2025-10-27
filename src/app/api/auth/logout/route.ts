@@ -22,6 +22,7 @@ export const DELETE = async () => {
       payload: null,
       message: "ログアウトに成功しました",
     };
+    console.log("User logged out successfully.");
     return NextResponse.json(res);
   } catch (e) {
     const errorMsg = e instanceof Error ? e.message : "Internal Server Error";
