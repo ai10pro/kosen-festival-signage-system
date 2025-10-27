@@ -12,12 +12,11 @@ const TOKEN_MAX_AGE_SECOND = 60 * 60 * 24 * 7;
 /**
  * セッションを作成し、そのセッションIDをクッキーに保存する。
  * @param userId - ユーザーID
- * @param tokenMaxAgeSecond - トークンの有効期限（秒）
  * @returns 生成されたセッションID
  */
 export const createSession = async (
   userId: string,
-  tokenMaxAgeSecond: number
+  tokenMaxAgeSecond: number = TOKEN_MAX_AGE_SECOND
 ): Promise<string> => {
   const session = await prisma.session.create({
     data: {

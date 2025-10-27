@@ -66,8 +66,7 @@ export const POST = async (req: NextRequest) => {
     }
 
     // セッションベース認証処理
-    const tokenMaxAgeSecond = 60 * 60 * 24 * 7; // 7日間
-    await createSession(user.id, tokenMaxAgeSecond);
+    await createSession(user.id);
     const res: ApiResponse<UserProfile> = {
       success: true,
       payload: userProfileSchema.parse(user),
