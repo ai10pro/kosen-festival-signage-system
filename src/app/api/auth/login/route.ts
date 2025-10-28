@@ -1,14 +1,18 @@
 import { prisma } from "@/libs/prisma";
 import { loginRequestSchema } from "@/app/_types/LoginRequest";
+import { userProfileSchema } from "@/app/_types/UserProfile";
+import type { UserProfile } from "@/app/_types/UserProfile";
 import type { ApiResponse } from "@/app/_types/ApiResponse";
 import { NextRequest, NextResponse } from "next/server";
 
-import { createSession } from "@/app/_helper/createSession";
+import { createSession } from "@/app/_helper/session";
 import bcrypt from "bcryptjs";
 
-export const dynamic = "force-dynamic";
-export const fetchCache = "no-store";
-export const revalidate = 0;
+export const config = {
+  dynamic: "force-dynamic",
+  fetchCache: "no-store",
+  revalidate: 0,
+};
 
 export const POST = async (req: NextRequest) => {
   try {
@@ -30,6 +34,12 @@ export const POST = async (req: NextRequest) => {
     const user = await prisma.user.findUnique({
       where: {
         username: loginRequest.userName,
+      },
+      select: {
+        id: true,
+        username: true,
+        passwordHash: true,
+        role: true,
       },
     });
     if (!user) {
@@ -56,11 +66,14 @@ export const POST = async (req: NextRequest) => {
     }
 
     // セッションベース認証処理
-    const tokenMaxAgeSecond = 60 * 60 * 24 * 7; // 7日間
-    await createSession(user.id, tokenMaxAgeSecond);
-    // const res: ApiResponse<null> = {
-    //   success: true,
-    //   payload: userProfileSchma.parse(user),
+    await createSession(user.id);
+    const res: ApiResponse<UserProfile> = {
+      success: true,
+      payload: userProfileSchema.parse(user),
+      message: "",
+    };
+    console.log(`User ${user.username} logged in successfully.`); // ログイン成功の記録
+    return NextResponse.json(res);
 
     // 成功レスポンス
   } catch (e) {
