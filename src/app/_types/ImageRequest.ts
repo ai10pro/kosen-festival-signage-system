@@ -15,20 +15,18 @@ export const createImageSchema = z.object({
 export const updateImageSchema = z
   .object({
     order: z.number().int().min(0).optional(),
-    isPublic: z.boolean().optional(),
   })
-  .refine((data) => data.order !== undefined || data.isPublic !== undefined, {
+  .refine((data) => data.order !== undefined, {
     message:
-      "更新するには 'order' または 'isPublic' の少なくとも一つが必要です。",
+      "更新するには 'order' フィールドを少なくとも1つ指定する必要があります。",
   });
 
 // クライアント向けの Image レスポンスタイプ (PrismaのImageモデルをベース)
 export const ImageResponseSchema = z.object({
   id: z.string().uuid(),
   storageUrl: z.string().url(),
-  fileHash: z.string().length(32),
+  fileHash: z.string(),
   order: z.number().int(),
-  isPublic: z.boolean(),
   contentId: z.string().uuid(),
   createdAt: z.date(),
   updatedAt: z.date(),

@@ -39,7 +39,7 @@ async function findImageById(id: string) {
  */
 
 export const GET = async (request: Request, { params }: ImageRouteParams) => {
-  const { id } = params;
+  const { id } = await params;
 
   try {
     const image = await findImageById(id);
@@ -81,7 +81,7 @@ export const GET = async (request: Request, { params }: ImageRouteParams) => {
  * @returns ImageResponse - 更新された画像データ
  */
 export const PATCH = async (req: Request, { params }: ImageRouteParams) => {
-  const { id } = params;
+  const { id } = await params;
 
   try {
     const json: UpdateImageRequest = await req.json();
@@ -147,7 +147,7 @@ export const PATCH = async (req: Request, { params }: ImageRouteParams) => {
  * @returns ImageResponse - 削除された画像データ
  */
 export const DELETE = async (req: Request, { params }: ImageRouteParams) => {
-  const { id } = params;
+  const { id } = await params;
 
   try {
     const deletedImage = await prisma.image.delete({
