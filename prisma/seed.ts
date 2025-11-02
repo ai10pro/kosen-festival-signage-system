@@ -136,7 +136,7 @@ async function main() {
   await prisma.image.create({
     data: {
       contentId: testContent.id,
-      storageUrl: "https://placehold.co/600x400/0000FF/FFFFFF?text=Slide+1",
+      storageUrl: "https://placehold.jp/3d4070/ffffff/600x400.png",
       fileHash: "hash-001",
       order: 1,
     },
@@ -145,7 +145,7 @@ async function main() {
   await prisma.image.create({
     data: {
       contentId: testContent.id,
-      storageUrl: "https://placehold.co/600x400/FF0000/FFFFFF?text=Slide+2",
+      storageUrl: "https://placehold.jp/15bca9/ffffff/600x400.png",
       fileHash: "hash-002",
       order: 2,
     },
