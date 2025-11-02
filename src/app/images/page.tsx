@@ -10,6 +10,32 @@ export default function ImageListPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const deleteImage = async (id: string) => {
+    if (!confirm("本当にこの画像を削除しますか？")) {
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/images/${id}`, {
+        method: "DELETE",
+      });
+      const data = await res.json();
+
+      if (data.success) {
+        alert("画像を削除しました。");
+      } else {
+        setError(data.message);
+      }
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setLoading(false);
+      fetchImages();
+    }
+  };
+
   const fetchImages = async () => {
     setLoading(true);
     setError(null);
@@ -79,6 +105,14 @@ export default function ImageListPage() {
                 height={100}
                 className="rounded"
               />
+            </div>
+            <div className="space-x-2">
+              <button
+                onClick={() => deleteImage(image.id)}
+                className="px-3 py-1 bg-red-500 text-white rounded"
+              >
+                削除
+              </button>
             </div>
             <div className="space-x-2">
               <Link
