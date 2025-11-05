@@ -1,7 +1,15 @@
 import { prisma } from "@/libs/prisma";
 import { NextRequest, NextResponse } from "next/server";
+import { ApiResponse } from "@/app/_types/ApiResponse";
 
-import { ContentResponse } from "@/app/_types/ContentRequest";
+import {
+  ContentResponse,
+  CreateContentRequest,
+  createContentSchema,
+} from "@/app/_types/ContentRequest";
+import { verifySession } from "@/app/_helper/session";
+import { ContentStatus as PrismaContentStatus } from "@prisma/client";
+import { group } from "console";
 
 export const config = {
   dynamic: "force-dynamic",
@@ -27,8 +35,8 @@ export const GET = async () => {
     });
 
     // コンテンツデータをバリデーション
-    const validatedContents: ContentResponse[] = contents.map((content) =>
-      content as unknown as ContentResponse
+    const validatedContents: ContentResponse[] = contents.map(
+      (content) => content as unknown as ContentResponse
     );
 
     return NextResponse.json(validatedContents, { status: 200 });
@@ -49,20 +57,42 @@ export const GET = async () => {
  */
 export const POST = async (req: NextRequest) => {
   try {
-    const reqBody = await req.json();
+    let userId: string | null = "";
+    userId = await verifySession();
+
+    if (!userId) {
+      return NextResponse.json(
+        { error: "ログインしてください" },
+        { status: 401 }
+      );
+    }
+    // リクエストボディのバリデーション
+    const result = createContentSchema.safeParse(await req.json());
+    if (!result.success) {
+      return NextResponse.json<ApiResponse<null>>(
+        {
+          success: false,
+          payload: null,
+          message: `バリデーションエラー: ${result.error.issues
+            .map((e) => e.message)
+            .join(", ")}`,
+        },
+        { status: 400 }
+      );
+    }
+
+    const { title, description, groupId, tagIds } = result.data;
+    const images = result.data.images;
 
     const newContent = await prisma.content.create({
       data: {
-        title: reqBody.title,
-        description: reqBody.description,
-        status: reqBody.status,
-        uploaderId: reqBody.uploaderId,
-        groupId: reqBody.groupId || null,
-      },
-      include: {
-        images: {
-          orderBy: { order: "asc" },
-        },
+        title,
+        description,
+        status: PrismaContentStatus.PENDING,
+        uploaderId: userId,
+        groupId: groupId ?? userId.groupId,
+        tagIds: tagIds ?? [],
+        editors: { connect: { id: userId } },
       },
     });
 

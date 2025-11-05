@@ -4,13 +4,20 @@ import { ImageResponseSchema } from "./ImageRequest";
 import { userProfileSchema } from "@/app/_types/UserProfile";
 
 // POST /api/contents のリクエストボディスキーマ
+// ステータスは初期で"PENDING"に設定されるため、クライアントからは受け取らない
+// エディター，アップローダーはログインユーザーに自動設定
+
+export const contentImageUploadSchema = z.object({
+  url: z.string().url(),
+  order: z.number().min(0),
+});
+
 export const createContentSchema = z.object({
   title: z.string().min(1),
   description: z.string().min(1).max(200),
-  status: z.enum(ContentStatus),
-  uploaderId: z.string().uuid(),
-  groupId: z.string().uuid().optional(),
-  editors: z.array(z.string().uuid()).optional(),
+  groupId: z.string().uuid().optional().nullable(),
+  images: z.array(contentImageUploadSchema).min(0).max(5),
+  tagIds: z.array(z.string().uuid()).min(0).optional(),
 });
 
 export const ContentResponseSchema = z.object({

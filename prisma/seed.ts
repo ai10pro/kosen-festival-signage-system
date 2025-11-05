@@ -126,10 +126,14 @@ async function main() {
   };
 
   const testContent = await prisma.content.create({
-    data: contentData,
+    data: {
+      ...contentData,
+      editors: {
+        connect: [{ id: exhibitorUser.id }],
+      },
+    },
   });
   console.log(`Created approved test content: ${testContent.title}`);
-
   // ----------------------------------------------------
   // 8. 画像 (Image) の作成 (コンテンツに2枚紐づけ)
   // ----------------------------------------------------
