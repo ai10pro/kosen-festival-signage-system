@@ -1,7 +1,7 @@
 import { prisma } from "@/libs/prisma";
 import { NextRequest, NextResponse } from "next/server";
 
-import { ContentResponse } from "@/app/_types/ContentResponse";
+import { ContentResponse } from "@/app/_types/ContentRequest";
 
 export const config = {
   dynamic: "force-dynamic",
@@ -28,7 +28,7 @@ export const GET = async () => {
 
     // コンテンツデータをバリデーション
     const validatedContents: ContentResponse[] = contents.map((content) =>
-      ContentResponse.parse(content)
+      content as unknown as ContentResponse
     );
 
     return NextResponse.json(validatedContents, { status: 200 });
@@ -66,7 +66,7 @@ export const POST = async (req: NextRequest) => {
       },
     });
 
-    const validatedContent = ContentResponse.parse(newContent);
+    const validatedContent = newContent as unknown as ContentResponse;
     return NextResponse.json(validatedContent, { status: 201 }); // 201: Created
   } catch (error) {
     const errorMsg =

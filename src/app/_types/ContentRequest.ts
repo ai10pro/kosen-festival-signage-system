@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { ContentStatus } from "./Status";
 import { ImageResponseSchema } from "./ImageRequest";
+import { userProfileSchema } from "@/app/_types/UserProfile";
 
 // POST /api/contents のリクエストボディスキーマ
 export const createContentSchema = z.object({
@@ -18,12 +19,13 @@ export const ContentResponseSchema = z.object({
   description: z.string(),
   status: z.enum(ContentStatus),
   rejectionReason: z.string().nullable(),
-  uploaderId: z.string().uuid(),
-  groupId: z.string().uuid().nullable(),
-  editors: z.array(z.string().uuid()),
+  uploaderId: userProfileSchema,
+  groupIds: z.array(z.string().uuid()),
+  editors: z.array(userProfileSchema),
   images: z.array(ImageResponseSchema),
   createdAt: z.date(),
   updatedAt: z.date(),
 });
 
 export type CreateContentRequest = z.infer<typeof createContentSchema>;
+export type ContentResponse = z.infer<typeof ContentResponseSchema>;
