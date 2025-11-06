@@ -1,6 +1,7 @@
 "use client";
 import dummyData from "@/app/_mocks/dummyData";
 import Image from "next/image";
+import Timer from "@/app/_components/Timer"
 import { useState, useEffect } from "react";
 
 const Signage: React.FC = () => {
@@ -32,23 +33,20 @@ const Signage: React.FC = () => {
     <div className="border border-slate-400 p-3 h-screen">
       <div className="flex h-full">
         <div className="w-1/4 flex flex-col h-full">
-          <div className="flex items-center justify-center text-6xl font-bold mt-12">
-            {now.toLocaleTimeString()}
-          </div>
-          <div className="flex items-center justify-center text-3xl mt-8">
-            {now.toLocaleDateString()}
-          </div>
+          <Timer></Timer>
           <div className="h-3/4 flex flex-col items-center justify-center text-4xl">
-            {content.description.split("\n").map((schedule, index) => (
-              <div key={index} className={`my-5 ml-40 pl-4 border-l-6  w-full  ${getBorderColorClass(schedule)}`}>
-                <p>
-                  {"🕒" + schedule.substring(0, schedule.indexOf("～") + 1)}
-                </p>
-                <p className="pl-15">
-                  {schedule.substring(schedule.indexOf("～") + 1).trim()}
-                </p>
-              </div>
-            ))}
+            <div>
+              {content.description.split("\n").map((schedule, index) => (
+                <div key={index} className={`my-8 pl-4 border-l-8 ${getBorderColorClass(schedule)}`}>
+                  <p>
+                    {"🕒" + schedule.substring(0, schedule.indexOf("～") + 1)}
+                  </p>
+                  <p className="pl-12">
+                    {schedule.substring(schedule.indexOf("～") + 1).trim()}
+                  </p>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
         <div className="w-3/4 flex flex-col h-full">
