@@ -29,7 +29,7 @@ const dummyData: ContentResponse[] = [
   {
     id: "cb4d0085-fa02-4772-9ce2-cf7d886f07a0",
     title: "TitleTitleTitle",
-    description: "DescriptionDescriptionDescription",
+    description: "13:00～　○○\n14:00～　△△\n15:00～　ビンゴ大会",
     status: "APPROVED",
     rejectionReason: null,
     uploaderId: dummyUploaderProfile,
