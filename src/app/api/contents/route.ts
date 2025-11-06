@@ -32,6 +32,10 @@ export const GET = async () => {
         images: {
           orderBy: { order: "asc" },
         },
+        contentTags: { include: { tag: true } },
+        uploader: { select: { id: true, username: true } },
+        group: { select: { id: true, name: true } },
+        editors: { select: { id: true, username: true } },
       },
     });
 
@@ -140,8 +144,7 @@ export const POST = async (req: NextRequest) => {
         { status: 500 }
       );
     } else if (createdContent) {
-      const validatedContent =
-        createdContent as unknown as ContentResponse;
+      const validatedContent = createdContent as unknown as ContentResponse;
       return NextResponse.json<ApiResponse<ContentResponse>>(
         {
           success: true,
