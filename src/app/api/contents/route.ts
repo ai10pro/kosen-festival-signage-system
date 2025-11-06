@@ -9,7 +9,8 @@ import {
 } from "@/app/_types/ContentRequest";
 import { verifySession } from "@/app/_helper/session";
 import { ContentStatus as PrismaContentStatus } from "@prisma/client";
-import { group } from "console";
+import { getGroupIdFromUser } from "@/app/_helper/getGroup";
+import { generateMD5Hash } from "@/app/_helper/generateHash";
 
 export const config = {
   dynamic: "force-dynamic",
@@ -66,6 +67,14 @@ export const POST = async (req: NextRequest) => {
         { status: 401 }
       );
     }
+    const userGroups = await getGroupIdFromUser(userId);
+    if (!userGroups) {
+      return NextResponse.json(
+        { error: "ユーザーのグループ情報が見つかりません" },
+        { status: 400 }
+      );
+    }
+
     // リクエストボディのバリデーション
     const result = createContentSchema.safeParse(await req.json());
     if (!result.success) {
@@ -90,14 +99,58 @@ export const POST = async (req: NextRequest) => {
         description,
         status: PrismaContentStatus.PENDING,
         uploaderId: userId,
-        groupId: groupId ?? userId.groupId,
-        tagIds: tagIds ?? [],
+        groupId: groupId ?? userGroups,
+        contentTags: {
+          create: tagIds?.map((tagId) => ({ tagId })),
+        },
         editors: { connect: { id: userId } },
       },
     });
 
-    const validatedContent = newContent as unknown as ContentResponse;
-    return NextResponse.json(validatedContent, { status: 201 }); // 201: Created
+    // コンテンツIDを取得
+    const newContentId = newContent.id;
+    // 画像データを登録
+    for (const image of images) {
+      await prisma.image.create({
+        data: {
+          storageUrl: image.url,
+          fileHash: generateMD5Hash(image.url),
+          order: image.order,
+          contentId: newContentId,
+        },
+      });
+    }
+    // 最終的なコンテンツデータを取得（画像も含む）
+    const createdContent = await prisma.content.findUnique({
+      where: { id: newContentId },
+      include: {
+        images: {
+          orderBy: { order: "asc" },
+        },
+      },
+    });
+
+    if (!createdContent) {
+      return NextResponse.json<ApiResponse<null>>(
+        {
+          success: false,
+          payload: null,
+          message: "コンテンツの作成に失敗しました。",
+        },
+        { status: 500 }
+      );
+    } else if (createdContent) {
+      const validatedContent =
+        createdContent as unknown as ContentResponse;
+      return NextResponse.json<ApiResponse<ContentResponse>>(
+        {
+          success: true,
+          payload: validatedContent,
+          message: "コンテンツが正常に作成されました。",
+        },
+        { status: 201 }
+      );
+    }
   } catch (error) {
     const errorMsg =
       error instanceof Error ? error.message : "未知のエラーです";

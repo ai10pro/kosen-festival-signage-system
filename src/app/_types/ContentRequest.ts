@@ -15,7 +15,7 @@ export const contentImageUploadSchema = z.object({
 export const createContentSchema = z.object({
   title: z.string().min(1),
   description: z.string().min(1).max(200),
-  groupId: z.string().uuid().optional().nullable(),
+  groupId: z.string().uuid(),
   images: z.array(contentImageUploadSchema).min(0).max(5),
   tagIds: z.array(z.string().uuid()).min(0).optional(),
 });
