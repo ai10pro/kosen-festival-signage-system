@@ -31,10 +31,28 @@ npm install
 3. **データベースのセットアップ**:
 
 `.env`ファイルを作成し以下のように環境変数を定義する。
+なお，以下はSupabase移行前のものである．
 
 ```
 DATABASE_URL="file:./dev.db"
 ```
+
+Supabase移行後は以下`.env`を作成する．
+
+```
+# Connect to Supabase via connection pooling
+DATABASE_URL="postgresql://postgres.[xxx]:[yyy]@aws-1-ap-northeast-1.pooler.supabase.com:6543/postgres?pgbouncer=true&connection_limit=1"
+
+# Direct connection to the database. Used for migrations
+DIRECT_URL="postgresql://postgres.[xxx]:[yyy]@aws-1-ap-northeast-1.pooler.supabase.com:5432/postgres"
+```
+
+- `[xxx]`:データベースを指定する文字列
+- `[yyy]`:プロジェクトのパスワード
+
+なお，どちらの値もSupabaseを参照すること．
+以下の操作は移行前，移行後問わず実施すること．
+ただし，Supabaseは無料枠のため以下コマンドを操作すると関連するDBがすべて初期化されるため留意すること．
 
 DBのスキーマ変更後や、DBの削除後には以下コマンドを順に実行し、DBの初期化を行う。
 
