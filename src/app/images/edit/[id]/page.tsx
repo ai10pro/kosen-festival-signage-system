@@ -43,7 +43,7 @@ export default function ImageEditPage() {
     setStorageUrl(image?.storageUrl || "");
     setContentId(image?.contentId || "");
     setOrder(image?.order || 0);
-  }, [image?.contentId, image?.order, image?.storageUrl]);
+  }, [image?.contentId, image?.storageUrl, image?.order]);
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -125,7 +125,7 @@ export default function ImageEditPage() {
           <input
             type="number"
             value={order}
-            onChange={(e) => setOrder(parseInt(e.target.value))}
+            onChange={(e) => setOrder(parseInt(e.target.value || "0"))}
             className="w-full p-2 border rounded"
             placeholder="例: 1"
             required

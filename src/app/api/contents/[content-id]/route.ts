@@ -38,7 +38,7 @@ export const GET = async (req: NextRequest, routeParams: RouteParams) => {
     const content = await prisma.content.findUnique({
       where: { id },
       include: {
-        images: { orderBy: { order: "asc" } },
+        images: { orderBy: { createdAt: "asc" } },
         contentTags: { include: { tag: true } },
         uploader: { select: { id: true, username: true } },
         group: { select: { id: true, name: true } },
@@ -149,14 +149,17 @@ export const PUT = async (req: NextRequest, routeParams: RouteParams) => {
       if (Array.isArray(images)) {
         await tx.image.deleteMany({ where: { contentId: id } });
         if (images.length > 0) {
-          await tx.image.createMany({
-            data: images.map((image) => ({
-              storageUrl: image.url,
-              fileHash: generateMD5Hash(image.url),
-              order: image.order,
-              contentId: id,
-            })),
-          });
+          for (const image of images) {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            await (tx as any).image.create({
+              data: {
+                storageUrl: image.url,
+                fileHash: generateMD5Hash(image.url),
+                contentId: id,
+                order: image.order ?? 0,
+              },
+            });
+          }
         }
       }
     });
@@ -165,7 +168,7 @@ export const PUT = async (req: NextRequest, routeParams: RouteParams) => {
     const updatedContent = await prisma.content.findUnique({
       where: { id },
       include: {
-        images: { orderBy: { order: "asc" } },
+        images: {},
         contentTags: { include: { tag: true } },
         uploader: { select: { id: true, username: true } },
         group: { select: { id: true, name: true } },

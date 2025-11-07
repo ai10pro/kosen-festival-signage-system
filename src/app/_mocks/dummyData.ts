@@ -21,6 +21,7 @@ const dummyImage: ImageResponse = {
   fileHash: "somehash123",
   order: 1,
   contentId: "cb4d0085-fa02-4772-9ce2-cf7d886f07a0",
+  groupId: "83fbc2ad-a5d5-483c-b9ad-6b08517f6a91",
   createdAt: new Date("2025-11-2T15:48:12.156Z"),
   updatedAt: new Date("2025-11-5T22:06:30.156Z"),
 };

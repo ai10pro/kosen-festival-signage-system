@@ -112,7 +112,7 @@ const Page: React.FC = () => {
     <main className="flex items-center justify-center min-h-screen bg-white dark:bg-gray-900">
       <div className="p-6 max-w-sm w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg">
         <h1 className="text-xl font-semibold text-center text-gray-900 dark:text-white mb-6">
-          管理画面 ログイン
+          ログイン
         </h1>
 
         <form
