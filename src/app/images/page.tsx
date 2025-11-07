@@ -19,6 +19,7 @@ type ImageItem = {
 export default function ImageListPage() {
   const [images, setImages] = useState<ImageItem[]>([]);
   const [groups, setGroups] = useState<{ id: string; name: string }[]>([]);
+
   // contentId -> title map (fetched once per content)
   const [contentsMap, setContentsMap] = useState<Record<string, string>>({});
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
@@ -75,6 +76,7 @@ export default function ImageListPage() {
       const url = groupId
         ? `/api/images?groupId=${encodeURIComponent(groupId)}`
         : "/api/images";
+      console.debug("fetchImages ->", url);
       const res = await fetch(url, { credentials: "same-origin" });
 
       if (!res.ok) {
@@ -101,7 +103,6 @@ export default function ImageListPage() {
           return a.contentId.localeCompare(b.contentId);
         });
         setImages(sortedImages);
-
         // fetch title for each unique contentId (only ones not already fetched)
         const uniqueContentIds = Array.from(
           new Set(sortedImages.map((img) => img.contentId))
@@ -156,6 +157,19 @@ export default function ImageListPage() {
     // まず所属グループを取得してから画像を取得
     const fetchGroups = async () => {
       setLoading(true);
+      // get current user role
+      let admin = false;
+      try {
+        const authRes = await fetch("/api/auth", {
+          credentials: "same-origin",
+        });
+        if (authRes.ok) {
+          const authBody = await authRes.json();
+          admin = !!(authBody?.success && authBody.payload?.role === "ADMIN");
+        }
+      } catch {
+        // ignore auth errors here; groups fetch will handle permissions
+      }
       try {
         const res = await fetch("/api/user/groups", {
           credentials: "same-origin",
@@ -181,18 +195,24 @@ export default function ImageListPage() {
         if (data.success) {
           const g = data.payload || [];
           setGroups(g);
-          // デフォルト選択：グループが1件以上なら最初のグループを選択
-          if (g.length === 1) {
-            setSelectedGroupId(g[0].id);
-            await fetchImages(g[0].id);
-          } else if (g.length > 1) {
-            // 複数ある場合は最初のグループを選択して表示（ユーザーは後で切替可能）
-            setSelectedGroupId(g[0].id);
-            await fetchImages(g[0].id);
+          // ADMIN は全件表示（group 未指定）をデフォルトにする
+          if (admin) {
+            setSelectedGroupId(null);
+            await fetchImages(null);
           } else {
-            // 所属グループが無い場合は空配列を表示
-            setImages([]);
-            setLoading(false);
+            // デフォルト選択：グループが1件以上なら最初のグループを選択
+            if (g.length === 1) {
+              setSelectedGroupId(g[0].id);
+              await fetchImages(g[0].id);
+            } else if (g.length > 1) {
+              // 複数ある場合は最初のグループを選択して表示（ユーザーは後で切替可能）
+              setSelectedGroupId(g[0].id);
+              await fetchImages(g[0].id);
+            } else {
+              // 所属グループが無い場合は空配列を表示
+              setImages([]);
+              setLoading(false);
+            }
           }
         } else {
           setError(data.message || "グループ取得エラー");
@@ -205,6 +225,9 @@ export default function ImageListPage() {
     };
 
     fetchGroups();
+    // Note: fetchImages is stable (useCallback without deps). isAdmin is read inside the effect;
+    // leaving dependency array empty to run this only on mount is intentional.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleGroupChange = async (groupId: string) => {
@@ -247,50 +270,57 @@ export default function ImageListPage() {
       )}
       {error && <p className="text-red-600">エラー: {error}</p>}
 
-      <ul className="space-y-2">
-        {images.map((image) => (
-          <li
-            key={image.id}
-            className="flex items-center justify-between p-3 border rounded"
-          >
-            <div>
-              <p className="font-medium">
-                Content:{" "}
-                <Link href={`/content/${image.contentId}`}>
-                  {contentsMap[image.contentId] ?? image.contentId}
-                </Link>
-              </p>
-              <p className="text-sm text-gray-500">ID: {image.id}</p>
-              {/* Order フィールドは存在しないため表示しない */}
-            </div>
-            <div className="space-x-2">
-              <Image
-                src={image.storageUrl}
-                alt={`Image ${image.id}`}
-                width={150}
-                height={100}
-                className="rounded"
-              />
-            </div>
-            <div className="space-x-2">
-              <button
-                onClick={() => deleteImage(image.id)}
-                className="px-3 py-1 bg-red-500 text-white rounded"
+      {/* Filter out images without a valid storageUrl before rendering */}
+      {images.length === 0 ? (
+        <div className="text-center text-gray-600">画像が存在しません。</div>
+      ) : (
+        <ul className="space-y-2">
+          {images
+            .filter((img) => img.storageUrl && img.storageUrl.trim() !== "")
+            .map((image) => (
+              <li
+                key={image.id}
+                className="flex items-center justify-between p-3 border rounded"
               >
-                削除
-              </button>
-            </div>
-            <div className="space-x-2">
-              <Link
-                href={`/images/edit/${image.id}`}
-                className="px-3 py-1 bg-yellow-400 rounded"
-              >
-                編集
-              </Link>
-            </div>
-          </li>
-        ))}
-      </ul>
+                <div>
+                  <p className="font-medium">
+                    Content:{" "}
+                    <Link href={`/content/${image.contentId}`}>
+                      {contentsMap[image.contentId] ?? image.contentId}
+                    </Link>
+                  </p>
+                  <p className="text-sm text-gray-500">ID: {image.id}</p>
+                  {/* Order フィールドは存在しないため表示しない */}
+                </div>
+                <div className="space-x-2">
+                  <Image
+                    src={image.storageUrl}
+                    alt={`Image ${image.id}`}
+                    width={150}
+                    height={100}
+                    className="rounded"
+                  />
+                </div>
+                <div className="space-x-2">
+                  <button
+                    onClick={() => deleteImage(image.id)}
+                    className="px-3 py-1 bg-red-500 text-white rounded"
+                  >
+                    削除
+                  </button>
+                </div>
+                <div className="space-x-2">
+                  <Link
+                    href={`/images/edit/${image.id}`}
+                    className="px-3 py-1 bg-yellow-400 rounded"
+                  >
+                    編集
+                  </Link>
+                </div>
+              </li>
+            ))}
+        </ul>
+      )}
     </main>
   );
 }

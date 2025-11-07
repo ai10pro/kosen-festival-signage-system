@@ -11,6 +11,8 @@ export default function ImageUploadPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [storageUrl, setStorageUrl] = useState("");
+  const [groups, setGroups] = useState<{ id: string; name: string }[]>([]);
+  const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
   const [contentId, setContentId] = useState("");
   const [order, setOrder] = useState(0);
 
@@ -58,6 +60,7 @@ export default function ImageUploadPage() {
       storageUrl,
       contentId,
       order,
+      groupId: selectedGroupId,
     };
 
     try {
@@ -74,6 +77,26 @@ export default function ImageUploadPage() {
       setLoading(false);
     }
   };
+
+  // fetch user's groups to allow selecting group for the image
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch("/api/user/groups", {
+          credentials: "same-origin",
+        });
+        if (!res.ok) return;
+        const body = await res.json();
+        if (body?.success) {
+          const g = body.payload || [];
+          setGroups(g);
+          if (g.length > 0) setSelectedGroupId(g[0].id);
+        }
+      } catch (e) {
+        console.error("failed to fetch user groups", e);
+      }
+    })();
+  }, []);
 
   return (
     <main className="max-w-2xl mx-auto p-6">
@@ -113,6 +136,22 @@ export default function ImageUploadPage() {
             required
           />
         </div>
+        {groups.length > 0 && (
+          <div>
+            <label className="block text-sm font-medium mb-1">グループ</label>
+            <select
+              value={selectedGroupId ?? ""}
+              onChange={(e) => setSelectedGroupId(e.target.value || null)}
+              className="w-full p-2 border rounded"
+            >
+              {groups.map((g) => (
+                <option key={g.id} value={g.id}>
+                  {g.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
         <div>
           <label className="block text-sm font-medium mb-1">順番</label>
           <input

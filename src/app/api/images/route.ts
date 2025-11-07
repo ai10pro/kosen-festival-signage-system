@@ -36,41 +36,47 @@ export const GET = async (req: NextRequest) => {
       return NextResponse.json(res, { status: 401 });
     }
 
-    // ユーザーが所属するグループID一覧を取得
+    // ユーザー情報と所属グループID一覧を取得
     const user = await prisma.user.findUnique({
       where: { id: userId },
       include: { userGroups: true },
     });
     const groupIds = (user?.userGroups || []).map((ug) => ug.groupId);
+    const isAdmin = user?.role === "ADMIN";
 
     // クエリパラメータから groupId を取得（任意）
     const url = new URL(req.url);
     const requestedGroupId = url.searchParams.get("groupId");
 
-    // グループが無い場合は空配列を返す
-    if (!requestedGroupId && groupIds.length === 0) {
-      return NextResponse.json<ApiResponse<ImageResponse[]>>(
-        { success: true, payload: [], message: "" },
-        { status: 200 }
-      );
-    }
+    // ADMIN ユーザーは全件取得（どの groupId にもアクセス可能）
+    if (!isAdmin) {
+      // グループが無い場合は空配列を返す
+      if (!requestedGroupId && groupIds.length === 0) {
+        return NextResponse.json<ApiResponse<ImageResponse[]>>(
+          { success: true, payload: [], message: "" },
+          { status: 200 }
+        );
+      }
 
-    // 指定された groupId がある場合は、そのグループに所属しているか確認
-    if (requestedGroupId) {
-      if (!groupIds.includes(requestedGroupId)) {
-        const res: ApiResponse<null> = {
-          success: false,
-          payload: null,
-          message: "指定されたグループの画像にアクセスする権限がありません。",
-        };
-        return NextResponse.json(res, { status: 403 });
+      // 指定された groupId がある場合は、そのグループに所属しているか確認
+      if (requestedGroupId) {
+        if (!groupIds.includes(requestedGroupId)) {
+          const res: ApiResponse<null> = {
+            success: false,
+            payload: null,
+            message: "指定されたグループの画像にアクセスする権限がありません。",
+          };
+          return NextResponse.json(res, { status: 403 });
+        }
       }
     }
 
-    // 画像取得：groupId が指定されていればそのグループ分のみ、未指定ならユーザー所属グループの画像を取得
-    const whereClause = requestedGroupId
-      ? { groupId: requestedGroupId }
-      : { groupId: { in: groupIds } };
+    // 画像取得：ADMIN ならフィルタ無しで全件、そうでなければ groupId 指定または所属グループ分を取得
+    const whereClause = isAdmin
+      ? {}
+      : requestedGroupId
+        ? { groupId: requestedGroupId }
+        : { groupId: { in: groupIds } };
 
     const images = await prisma.image.findMany({
       where: whereClause,
