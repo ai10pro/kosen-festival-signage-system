@@ -114,6 +114,16 @@ export const GET = async (req: NextRequest) => {
  */
 export const POST = async (req: NextRequest) => {
   try {
+    // セッション検証：ログインユーザーのIDを取得
+    const userId = await verifySession();
+    if (!userId) {
+      const res: ApiResponse<null> = {
+        success: false,
+        payload: null,
+        message: "ログインしてください",
+      };
+      return NextResponse.json(res, { status: 401 });
+    }
     const json: CreateImageRequest = await req.json();
 
     // リクエストボディのバリデーション
