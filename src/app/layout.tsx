@@ -1,5 +1,6 @@
 "use client";
 
+import { usePathname } from "next/navigation";
 import ThemeProvider from "../theme/theme-provider";
 import { Header } from "@/app/_components/Header";
 import "./globals.css";
@@ -11,6 +12,10 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const pathname = usePathname();
+  const noHeaderPaths = ["/login", "/signage/view"];
+  const showHeader = !noHeaderPaths.includes(pathname);
+
   return (
     <html lang="en" suppressHydrationWarning>
       <body className="bg-white dark:bg-[#191919] text-[#37352f] dark:text-[#ffffffcf] flex">
@@ -21,8 +26,8 @@ export default function RootLayout({
             enableSystem
             disableTransitionOnChange
           >
-            <Header />
-            <div className="w-3/4">{children}</div>
+            {showHeader && <Header />}
+            <div className={showHeader ? "w-3/4" : "w-full"}>{children}</div>
           </ThemeProvider>
         </AuthProvider>
       </body>
