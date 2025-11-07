@@ -11,6 +11,14 @@ import { verifySession } from "@/app/_helper/session";
 import { ContentStatus as PrismaContentStatus, Prisma } from "@prisma/client";
 import { getGroupIdFromUser } from "@/app/_helper/getGroup";
 import { generateMD5Hash } from "@/app/_helper/generateHash";
+import { createClient } from "@supabase/supabase-js";
+
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const supabaseAdmin = createClient(
+  SUPABASE_URL ?? "",
+  SUPABASE_SERVICE_ROLE_KEY ?? ""
+);
 
 export const config = {
   dynamic: "force-dynamic",
@@ -172,13 +180,42 @@ export const POST = async (req: NextRequest) => {
 
     // コンテンツIDを取得
     const newContentId = newContent.id;
-    // 画像データを登録（order を保存）
+    // 画像データを登録（order を保存）。一時プレフィックスからの移動を行う
     for (const image of images) {
+      let finalStorageUrl = image.url;
+      let finalStorageKey = (image as any).storageKey as string | undefined;
+      try {
+        if (finalStorageKey && finalStorageKey.startsWith("public/temp/")) {
+          const hashed = generateMD5Hash(
+            finalStorageKey + Date.now().toString()
+          );
+          const ext = finalStorageKey.includes(".")
+            ? finalStorageKey.substring(finalStorageKey.lastIndexOf("."))
+            : "";
+          const destPath = `public/exhibition/${hashed}${ext}`;
+          const moveRes = await supabaseAdmin.storage
+            .from("content_image")
+            .move(finalStorageKey, destPath);
+          if (!(moveRes as any).error) {
+            finalStorageKey = destPath;
+            const publicUrlResult = supabaseAdmin.storage
+              .from("content_image")
+              .getPublicUrl(destPath);
+            finalStorageUrl =
+              (publicUrlResult as any).data?.publicUrl ?? finalStorageUrl;
+          } else {
+            console.debug("failed to move file", (moveRes as any).error);
+          }
+        }
+      } catch (err) {
+        console.debug("error moving storage file:", err);
+      }
+
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       await (prisma as any).image.create({
         data: {
-          storageUrl: image.url,
-          fileHash: generateMD5Hash(image.url),
+          storageUrl: finalStorageUrl,
+          fileHash: generateMD5Hash(finalStorageUrl),
           contentId: newContentId,
           order: image.order ?? 0,
           groupId: newContent.groupId ?? null,

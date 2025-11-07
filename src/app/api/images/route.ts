@@ -9,6 +9,14 @@ import {
   ImageResponseSchema,
 } from "@/app/_types/ImageRequest";
 import { generateMD5Hash } from "@/app/_helper/generateHash";
+import { createClient } from "@supabase/supabase-js";
+
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const supabaseAdmin = createClient(
+  SUPABASE_URL ?? "",
+  SUPABASE_SERVICE_ROLE_KEY ?? ""
+);
 import { ApiResponse } from "@/app/_types/ApiResponse";
 
 export const config = {
@@ -141,7 +149,8 @@ export const POST = async (req: NextRequest) => {
       );
     }
 
-    const { storageUrl, contentId, groupId, order } = validation.data;
+    const { storageUrl, storageKey, contentId, groupId, order } =
+      validation.data as any;
     const fileHash = generateMD5Hash(storageUrl);
     const existingImage = await prisma.image.findFirst({
       where: { fileHash },
@@ -173,9 +182,37 @@ export const POST = async (req: NextRequest) => {
       );
     }
 
+    // storageKey があり、かつ一時プレフィックスなら永久領域へ移動して publicUrl を更新
+    let finalStorageUrl = storageUrl;
+    let finalStorageKey = storageKey;
+    try {
+      if (storageKey && storageKey.startsWith("public/temp/")) {
+        const hashed = generateMD5Hash(storageKey + Date.now().toString());
+        const ext = storageKey.includes(".")
+          ? storageKey.substring(storageKey.lastIndexOf("."))
+          : "";
+        const destPath = `public/exhibition/${hashed}${ext}`;
+        const moveRes = await supabaseAdmin.storage
+          .from("content_image")
+          .move(storageKey, destPath);
+        if ((moveRes as any).error) {
+          console.debug("failed to move file", (moveRes as any).error);
+        } else {
+          finalStorageKey = destPath;
+          const publicUrlResult = supabaseAdmin.storage
+            .from("content_image")
+            .getPublicUrl(destPath);
+          finalStorageUrl =
+            (publicUrlResult as any).data?.publicUrl ?? finalStorageUrl;
+        }
+      }
+    } catch (err) {
+      console.debug("error moving storage file:", err);
+    }
+
     const newImage = await (prisma as any).image.create({
       data: {
-        storageUrl,
+        storageUrl: finalStorageUrl,
         fileHash,
         contentId,
         groupId: groupId ?? null,

@@ -8,6 +8,14 @@ import {
   ImageResponseSchema,
 } from "@/app/_types/ImageRequest";
 import { ApiResponse } from "@/app/_types/ApiResponse";
+import { createClient } from "@supabase/supabase-js";
+
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const supabaseAdmin = createClient(
+  SUPABASE_URL ?? "",
+  SUPABASE_SERVICE_ROLE_KEY ?? ""
+);
 
 /**
  * 共通処理：IDに基づいて画像レコードを取得する関数
@@ -127,7 +135,7 @@ export const PATCH = async (
         { status: 400 }
       );
     }
-    const dateToUpdate = validation.data;
+    const dateToUpdate = validation.data as any;
 
     // 認証と所属チェック
     const userId = await verifySession();
@@ -163,6 +171,38 @@ export const PATCH = async (
         message: "この画像を更新する権限がありません。",
       };
       return NextResponse.json(res, { status: 403 });
+    }
+
+    // storageKey が含まれており、一時プレフィックスから移動する必要があれば実行
+    if (
+      (dateToUpdate as any).storageKey &&
+      (dateToUpdate as any).storageKey.startsWith("public/temp/")
+    ) {
+      try {
+        const storageKey = (dateToUpdate as any).storageKey as string;
+        const hashed = storageKey + Date.now().toString();
+        const ext = storageKey.includes(".")
+          ? storageKey.substring(storageKey.lastIndexOf("."))
+          : "";
+        const destPath = `public/exhibition/${hashed}${ext}`;
+        const moveRes = await supabaseAdmin.storage
+          .from("content_image")
+          .move(storageKey, destPath);
+        if (!(moveRes as any).error) {
+          const publicUrlResult = supabaseAdmin.storage
+            .from("content_image")
+            .getPublicUrl(destPath);
+          dateToUpdate.storageUrl =
+            (publicUrlResult as any).data?.publicUrl ?? dateToUpdate.storageUrl;
+        } else {
+          console.debug(
+            "failed to move file on image PATCH",
+            (moveRes as any).error
+          );
+        }
+      } catch (err) {
+        console.debug("error moving file on image PATCH", err);
+      }
     }
 
     // 画像更新
