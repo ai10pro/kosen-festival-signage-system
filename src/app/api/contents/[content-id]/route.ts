@@ -242,20 +242,26 @@ export const DELETE = async (req: NextRequest, routeParams: RouteParams) => {
       );
     }
 
-    // ユーザーの所属グループを取得して、コンテンツの groupId と比較する
+    // ユーザーの所属グループを取得
     const user = await prisma.user.findUnique({
       where: { id: userId },
       include: { userGroups: true },
     });
     const groupIds = (user?.userGroups || []).map((ug) => ug.groupId);
 
-    if (!content.groupId || !groupIds.includes(content.groupId)) {
-      const res: ApiResponse<null> = {
-        success: false,
-        payload: null,
-        message: "このコンテンツを削除する権限がありません。",
-      };
-      return NextResponse.json(res, { status: 403 });
+    // ADMIN ロールのユーザーは削除を許可
+    const isAdmin = user?.role === "ADMIN";
+
+    // ADMIN でなければ所属グループと一致する必要がある
+    if (!isAdmin) {
+      if (!content.groupId || !groupIds.includes(content.groupId)) {
+        const res: ApiResponse<null> = {
+          success: false,
+          payload: null,
+          message: "このコンテンツを削除する権限がありません。",
+        };
+        return NextResponse.json(res, { status: 403 });
+      }
     }
 
     await prisma.content.delete({ where: { id } });
