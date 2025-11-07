@@ -60,15 +60,17 @@ export const GET = async () => {
  */
 export const POST = async (req: NextRequest) => {
   try {
-    let userId: string | null = "";
-    userId = await verifySession();
-
+    // セッション検証：ログインユーザーのIDを取得
+    const userId = await verifySession();
     if (!userId) {
-      return NextResponse.json(
-        { error: "ログインしてください" },
-        { status: 401 }
-      );
+      const res: ApiResponse<null> = {
+        success: false,
+        payload: null,
+        message: "ログインしてください",
+      };
+      return NextResponse.json(res, { status: 401 });
     }
+
     const userGroups = await getGroupIdFromUser(userId);
     if (!userGroups) {
       return NextResponse.json(
