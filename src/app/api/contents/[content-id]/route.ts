@@ -164,8 +164,7 @@ export const PUT = async (req: NextRequest, routeParams: RouteParams) => {
           // 更新後のコンテンツの groupId を決定
           const targetGroupId = groupId ?? existing.groupId;
           for (const image of images) {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            await (tx as any).image.create({
+            await tx.image.create({
               data: {
                 storageUrl: image.url,
                 fileHash: generateMD5Hash(image.url),

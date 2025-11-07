@@ -1,7 +1,6 @@
 import { prisma } from "@/libs/prisma";
 import { NextRequest, NextResponse } from "next/server";
 import { ApiResponse } from "@/app/_types/ApiResponse";
-
 import {
   ContentResponse,
   CreateContentRequest,
@@ -156,8 +155,9 @@ export const POST = async (req: NextRequest) => {
       );
     }
 
-    const { title, description, groupId, tagIds } = result.data;
-    const images = result.data.images;
+    const data = result.data as CreateContentRequest;
+    const { title, description, groupId, tagIds } = data;
+    const images = data.images;
 
     const newContent = await prisma.content.create({
       data: {
@@ -183,36 +183,53 @@ export const POST = async (req: NextRequest) => {
     // 画像データを登録（order を保存）。一時プレフィックスからの移動を行う
     for (const image of images) {
       let finalStorageUrl = image.url;
-      let finalStorageKey = (image as any).storageKey as string | undefined;
+      let finalStorageKey = image.storageKey as string | undefined;
       try {
         if (finalStorageKey && finalStorageKey.startsWith("public/temp/")) {
+          const group = await prisma.group.findUnique({
+            where: { id: newContent.groupId },
+          });
+          const uploader = await prisma.user.findUnique({
+            where: { id: userId },
+          });
+          const groupName = group?.name ?? "group";
+          const contentName = title ?? "content";
+          const userName = uploader?.username ?? "user";
+          const slug = (s: string) =>
+            s
+              .toString()
+              .trim()
+              .toLowerCase()
+              .replace(/[^a-z0-9\-_.]/g, "_")
+              .replace(/_+/g, "_")
+              .slice(0, 120);
+
           const hashed = generateMD5Hash(
             finalStorageKey + Date.now().toString()
           );
           const ext = finalStorageKey.includes(".")
             ? finalStorageKey.substring(finalStorageKey.lastIndexOf("."))
             : "";
-          const destPath = `public/exhibition/${hashed}${ext}`;
+          const destPath = `public/${slug(groupName)}/${slug(contentName)}/${slug(userName)}/${hashed}${ext}`;
           const moveRes = await supabaseAdmin.storage
             .from("content_image")
             .move(finalStorageKey, destPath);
-          if (!(moveRes as any).error) {
+          if (!moveRes.error) {
             finalStorageKey = destPath;
-            const publicUrlResult = supabaseAdmin.storage
+            const publicUrlResult = await supabaseAdmin.storage
               .from("content_image")
               .getPublicUrl(destPath);
             finalStorageUrl =
-              (publicUrlResult as any).data?.publicUrl ?? finalStorageUrl;
+              publicUrlResult.data?.publicUrl ?? finalStorageUrl;
           } else {
-            console.debug("failed to move file", (moveRes as any).error);
+            console.debug("failed to move file", moveRes.error);
           }
         }
       } catch (err) {
         console.debug("error moving storage file:", err);
       }
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      await (prisma as any).image.create({
+      await prisma.image.create({
         data: {
           storageUrl: finalStorageUrl,
           fileHash: generateMD5Hash(finalStorageUrl),

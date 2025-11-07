@@ -135,7 +135,7 @@ export const PATCH = async (
         { status: 400 }
       );
     }
-    const dateToUpdate = validation.data as any;
+    const dateToUpdate = validation.data as UpdateImageRequest;
 
     // 認証と所属チェック
     const userId = await verifySession();
@@ -175,11 +175,11 @@ export const PATCH = async (
 
     // storageKey が含まれており、一時プレフィックスから移動する必要があれば実行
     if (
-      (dateToUpdate as any).storageKey &&
-      (dateToUpdate as any).storageKey.startsWith("public/temp/")
+      dateToUpdate.storageKey &&
+      dateToUpdate.storageKey.startsWith("public/temp/")
     ) {
       try {
-        const storageKey = (dateToUpdate as any).storageKey as string;
+        const storageKey = dateToUpdate.storageKey as string;
         const hashed = storageKey + Date.now().toString();
         const ext = storageKey.includes(".")
           ? storageKey.substring(storageKey.lastIndexOf("."))
@@ -188,17 +188,14 @@ export const PATCH = async (
         const moveRes = await supabaseAdmin.storage
           .from("content_image")
           .move(storageKey, destPath);
-        if (!(moveRes as any).error) {
+        if (!moveRes.error) {
           const publicUrlResult = supabaseAdmin.storage
             .from("content_image")
             .getPublicUrl(destPath);
           dateToUpdate.storageUrl =
-            (publicUrlResult as any).data?.publicUrl ?? dateToUpdate.storageUrl;
+            publicUrlResult.data?.publicUrl ?? dateToUpdate.storageUrl;
         } else {
-          console.debug(
-            "failed to move file on image PATCH",
-            (moveRes as any).error
-          );
+          console.debug("failed to move file on image PATCH", moveRes.error);
         }
       } catch (err) {
         console.debug("error moving file on image PATCH", err);
@@ -299,6 +296,46 @@ export const DELETE = async (
       where: { id },
     });
     ImageResponseSchema.parse(deletedImage);
+
+    // Try to remove the underlying storage object if we can determine its key
+    try {
+      const publicUrl = image.storageUrl;
+      let storageKey: string | null = null;
+
+      if (publicUrl) {
+        try {
+          const u = new URL(publicUrl);
+          // Supabase public URL typically contains '/object/public/<bucket>/<path>'
+          const objectPublicIndex = u.pathname.indexOf("/object/public/");
+          if (objectPublicIndex !== -1) {
+            // pathname: /storage/v1/object/public/<bucket>/<path>
+            const parts = u.pathname.split("/object/public/")[1].split("/");
+            // remove bucket name
+            parts.shift();
+            storageKey = parts.join("/");
+          } else {
+            // fallback: try to find bucket name in path (e.g. '/content_image/...')
+            const idx = u.pathname.indexOf("/content_image/");
+            if (idx !== -1) {
+              storageKey = u.pathname.substring(idx + "/content_image/".length);
+            }
+          }
+        } catch (err) {
+          console.debug("failed to parse public url for storage key", err);
+        }
+      }
+
+      if (storageKey) {
+        const removeRes = await supabaseAdmin.storage
+          .from("content_image")
+          .remove([storageKey]);
+        if ("error" in removeRes && removeRes.error) {
+          console.debug("failed to remove storage object:", removeRes.error);
+        }
+      }
+    } catch (err) {
+      console.debug("error while attempting to delete storage object", err);
+    }
 
     return NextResponse.json<ApiResponse<null>>(
       {
