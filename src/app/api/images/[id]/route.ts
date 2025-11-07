@@ -9,10 +9,6 @@ import {
 } from "@/app/_types/ImageRequest";
 import { ApiResponse } from "@/app/_types/ApiResponse";
 
-// TODO: 認証ミドルウェア実装後，ロールでのアクセス制限を追加
-
-/* ImageRouteParams removed — using Next's context shape directly in handler signatures */
-
 /**
  * 共通処理：IDに基づいて画像レコードを取得する関数
  * @param id 画像ID
