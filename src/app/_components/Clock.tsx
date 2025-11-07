@@ -30,7 +30,7 @@ const Clock: React.FC = () => {
   };
 
   return (
-    <div className="m-auto">
+    <div className="p-2 m-auto">
       <div className="flex items-center justify-center text-3xl">
         {formatDate(now)}
       </div>
