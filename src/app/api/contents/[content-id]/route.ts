@@ -32,6 +32,16 @@ export const config = {
  */
 export const GET = async (req: NextRequest, routeParams: RouteParams) => {
   try {
+    // セッション検証：ログインユーザーのIDを取得
+    const userId = await verifySession();
+    if (!userId) {
+      const res: ApiResponse<null> = {
+        success: false,
+        payload: null,
+        message: "ログインしてください",
+      };
+      return NextResponse.json(res, { status: 401 });
+    }
     const params = await routeParams.params;
     const id = params["content-id"];
     // ID に対応する単一レコードを取得する（関連データも含める）
@@ -75,18 +85,20 @@ export const GET = async (req: NextRequest, routeParams: RouteParams) => {
  */
 export const PUT = async (req: NextRequest, routeParams: RouteParams) => {
   try {
-    let userId: string | null = "";
-    userId = await verifySession();
+    // セッション検証：ログインユーザーのIDを取得
+    const userId = await verifySession();
+    if (!userId) {
+      const res: ApiResponse<null> = {
+        success: false,
+        payload: null,
+        message: "ログインしてください",
+      };
+      return NextResponse.json(res, { status: 401 });
+    }
 
     const params = await routeParams.params;
     const id = params["content-id"];
 
-    if (!userId) {
-      return NextResponse.json(
-        { error: "ログインしてください" },
-        { status: 401 }
-      );
-    }
     const userGroups = await getGroupIdFromUser(userId);
     if (!userGroups) {
       return NextResponse.json(
@@ -149,14 +161,16 @@ export const PUT = async (req: NextRequest, routeParams: RouteParams) => {
       if (Array.isArray(images)) {
         await tx.image.deleteMany({ where: { contentId: id } });
         if (images.length > 0) {
+          // 更新後のコンテンツの groupId を決定
+          const targetGroupId = groupId ?? existing.groupId;
           for (const image of images) {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            await (tx as any).image.create({
+            await tx.image.create({
               data: {
                 storageUrl: image.url,
                 fileHash: generateMD5Hash(image.url),
                 contentId: id,
                 order: image.order ?? 0,
+                groupId: targetGroupId ?? null,
               },
             });
           }
@@ -209,19 +223,50 @@ export const PUT = async (req: NextRequest, routeParams: RouteParams) => {
  */
 export const DELETE = async (req: NextRequest, routeParams: RouteParams) => {
   try {
+    // セッション検証：ログインユーザーのIDを取得
+    const userId = await verifySession();
+    if (!userId) {
+      const res: ApiResponse<null> = {
+        success: false,
+        payload: null,
+        message: "ログインしてください",
+      };
+      return NextResponse.json(res, { status: 401 });
+    }
+
     const params = await routeParams.params;
     const id = params["content-id"];
-    const deletedContent = await prisma.content.delete({
-      where: {
-        id,
-      },
-    });
-    if (!deletedContent) {
+    const content = await prisma.content.findUnique({ where: { id } });
+    if (!content) {
       return NextResponse.json(
         { error: "指定されたidのコンテンツが見つかりませんでした。" },
         { status: 404 }
       );
     }
+
+    // ユーザーの所属グループを取得
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      include: { userGroups: true },
+    });
+    const groupIds = (user?.userGroups || []).map((ug) => ug.groupId);
+
+    // ADMIN ロールのユーザーは削除を許可
+    const isAdmin = user?.role === "ADMIN";
+
+    // ADMIN でなければ所属グループと一致する必要がある
+    if (!isAdmin) {
+      if (!content.groupId || !groupIds.includes(content.groupId)) {
+        const res: ApiResponse<null> = {
+          success: false,
+          payload: null,
+          message: "このコンテンツを削除する権限がありません。",
+        };
+        return NextResponse.json(res, { status: 403 });
+      }
+    }
+
+    await prisma.content.delete({ where: { id } });
     return NextResponse.json<ApiResponse<null>>(
       {
         success: true,

@@ -10,6 +10,7 @@ import { userProfileSchema } from "@/app/_types/UserProfile";
 export const contentImageUploadSchema = z.object({
   url: z.string().url(),
   order: z.number().min(0),
+  storageKey: z.string().optional(),
 });
 
 export const createContentSchema = z.object({

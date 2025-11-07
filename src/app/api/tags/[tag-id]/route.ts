@@ -1,6 +1,8 @@
 import { prisma } from "@/libs/prisma";
 import { NextResponse, NextRequest } from "next/server";
 import { Tag } from "@prisma/client";
+import { verifySession } from "@/app/_helper/session";
+import { ApiResponse } from "@/app/_types/ApiResponse";
 
 type RouteParams = {
   // Next.js may provide params as a Promise in some environments — await before using.
@@ -11,6 +13,16 @@ type RouteParams = {
 
 export const GET = async (req: NextRequest, routeParams: RouteParams) => {
   try {
+    // セッション検証：ログインユーザーのIDを取得
+    const userId = await verifySession();
+    if (!userId) {
+      const res: ApiResponse<null> = {
+        success: false,
+        payload: null,
+        message: "ログインしてください",
+      };
+      return NextResponse.json(res, { status: 401 });
+    }
     const params = await routeParams.params;
     const id = params["tag-id"];
     const tag: Tag | null = await prisma.tag.findUnique({
@@ -45,6 +57,16 @@ export const GET = async (req: NextRequest, routeParams: RouteParams) => {
 
 export const DELETE = async (req: NextRequest, routeParams: RouteParams) => {
   try {
+    // セッション検証：ログインユーザーのIDを取得
+    const userId = await verifySession();
+    if (!userId) {
+      const res: ApiResponse<null> = {
+        success: false,
+        payload: null,
+        message: "ログインしてください",
+      };
+      return NextResponse.json(res, { status: 401 });
+    }
     const params = await routeParams.params;
     const id = params["tag-id"];
     const deletedTag: Tag = await prisma.tag.delete({
@@ -72,6 +94,16 @@ export const DELETE = async (req: NextRequest, routeParams: RouteParams) => {
 
 export const PUT = async (req: NextRequest, routeParams: RouteParams) => {
   try {
+    // セッション検証：ログインユーザーのIDを取得
+    const userId = await verifySession();
+    if (!userId) {
+      const res: ApiResponse<null> = {
+        success: false,
+        payload: null,
+        message: "ログインしてください",
+      };
+      return NextResponse.json(res, { status: 401 });
+    }
     const params = await routeParams.params;
     const id = params["tag-id"];
     const body = await req.json();

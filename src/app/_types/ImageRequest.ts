@@ -6,6 +6,7 @@ import { z } from "zod";
 // order: 表示順 (任意, なければ 0)
 export const createImageSchema = z.object({
   storageUrl: z.string().url("有効なURL形式で入力してください。"),
+  storageKey: z.string().optional(),
   contentId: z.string().uuid("有効なコンテンツID（UUID）が必要です。"),
   groupId: z.string().uuid().optional(),
   order: z.number().int().min(0).optional(),
@@ -16,6 +17,7 @@ export const createImageSchema = z.object({
 export const updateImageSchema = z
   .object({
     storageUrl: z.string().url().optional(),
+    storageKey: z.string().optional(),
     contentId: z.string().uuid().optional(),
     groupId: z.string().uuid().optional(),
     order: z.number().int().min(0).optional(),
