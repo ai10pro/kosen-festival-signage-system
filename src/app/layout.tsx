@@ -13,7 +13,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className="bg-white dark:bg-[#191919] text-[#37352f] dark:text-[#ffffffcf]">
+      <body className="bg-white dark:bg-[#191919] text-[#37352f] dark:text-[#ffffffcf] flex">
         <AuthProvider>
           <ThemeProvider
             attribute="class"
@@ -22,7 +22,7 @@ export default function RootLayout({
             disableTransitionOnChange
           >
             <Header />
-            {children}
+            <div className="w-3/4">{children}</div>
           </ThemeProvider>
         </AuthProvider>
       </body>
