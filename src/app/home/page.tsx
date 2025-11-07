@@ -316,9 +316,7 @@ export default function Home() {
       {/* 右側 */}
       <div className="w-2/5 ">
         <div className="h-1/5 py-2">
-          <div className="w-full h-full border-2 rounded-2xl p-4">
-            <Clock />
-          </div>
+          <Clock />
         </div>
         <div className="h-4/5 py-2">
           <div className="w-full h-full border-2 rounded-2xl p-4 flex items-center">
