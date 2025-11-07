@@ -1,5 +1,6 @@
-import { NextResponse } from "next/server";
+import { NextResponse, NextRequest } from "next/server";
 import { prisma } from "@/libs/prisma";
+import { verifySession } from "@/app/_helper/session";
 import {
   UpdateImageRequest,
   updateImageSchema,
@@ -10,11 +11,7 @@ import { ApiResponse } from "@/app/_types/ApiResponse";
 
 // TODO: 認証ミドルウェア実装後，ロールでのアクセス制限を追加
 
-interface ImageRouteParams {
-  params: {
-    id: string;
-  };
-}
+/* ImageRouteParams removed — using Next's context shape directly in handler signatures */
 
 /**
  * 共通処理：IDに基づいて画像レコードを取得する関数
@@ -38,12 +35,26 @@ async function findImageById(id: string) {
  * @returns ImageResponse - 画像データ
  */
 
-export const GET = async (request: Request, { params }: ImageRouteParams) => {
-  const { id } = await params;
+export const GET = async (
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) => {
+  const p = await params;
+  const id = p.id;
 
   try {
-    const image = await findImageById(id);
+    // 認証と所属グループチェック
+    const userId = await verifySession();
+    if (!userId) {
+      const res: ApiResponse<null> = {
+        success: false,
+        payload: null,
+        message: "ログインしてください",
+      };
+      return NextResponse.json(res, { status: 401 });
+    }
 
+    const image = await findImageById(id);
     if (!image) {
       const res: ApiResponse<null> = {
         success: false,
@@ -51,6 +62,22 @@ export const GET = async (request: Request, { params }: ImageRouteParams) => {
         message: "画像が見つかりませんでした。",
       };
       return NextResponse.json(res, { status: 404 });
+    }
+
+    // 画像に割り当てられた groupId がユーザーの所属グループに含まれるか確認
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      include: { userGroups: true },
+    });
+    const groupIds = (user?.userGroups || []).map((ug) => ug.groupId);
+
+    if (!image.groupId || !groupIds.includes(image.groupId)) {
+      const res: ApiResponse<null> = {
+        success: false,
+        payload: null,
+        message: "この画像にアクセスする権限がありません。",
+      };
+      return NextResponse.json(res, { status: 403 });
     }
 
     return NextResponse.json<ApiResponse<ImageResponse>>(
@@ -80,8 +107,12 @@ export const GET = async (request: Request, { params }: ImageRouteParams) => {
  * @param params.id - 画像ID（UUID）
  * @returns ImageResponse - 更新された画像データ
  */
-export const PATCH = async (req: Request, { params }: ImageRouteParams) => {
-  const { id } = await params;
+export const PATCH = async (
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) => {
+  const p = await params;
+  const id = p.id;
 
   try {
     const json: UpdateImageRequest = await req.json();
@@ -102,7 +133,43 @@ export const PATCH = async (req: Request, { params }: ImageRouteParams) => {
     }
     const dateToUpdate = validation.data;
 
-    // 画像レコードの存在確認と更新
+    // 認証と所属チェック
+    const userId = await verifySession();
+    if (!userId) {
+      const res: ApiResponse<null> = {
+        success: false,
+        payload: null,
+        message: "ログインしてください",
+      };
+      return NextResponse.json(res, { status: 401 });
+    }
+
+    const image = await findImageById(id);
+    if (!image) {
+      const res: ApiResponse<null> = {
+        success: false,
+        payload: null,
+        message: "画像が見つかりませんでした。",
+      };
+      return NextResponse.json(res, { status: 404 });
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      include: { userGroups: true },
+    });
+    const groupIds = (user?.userGroups || []).map((ug) => ug.groupId);
+
+    if (!image.groupId || !groupIds.includes(image.groupId)) {
+      const res: ApiResponse<null> = {
+        success: false,
+        payload: null,
+        message: "この画像を更新する権限がありません。",
+      };
+      return NextResponse.json(res, { status: 403 });
+    }
+
+    // 画像更新
     const updateImage = await prisma.image.update({
       where: { id },
       data: { ...dateToUpdate },
@@ -146,10 +213,50 @@ export const PATCH = async (req: Request, { params }: ImageRouteParams) => {
  * @param params.id - 画像ID（UUID）
  * @returns ImageResponse - 削除された画像データ
  */
-export const DELETE = async (req: Request, { params }: ImageRouteParams) => {
-  const { id } = await params;
+export const DELETE = async (
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) => {
+  const p = await params;
+  const id = p.id;
 
   try {
+    // 認証と所属チェック
+    const userId = await verifySession();
+    if (!userId) {
+      const res: ApiResponse<null> = {
+        success: false,
+        payload: null,
+        message: "ログインしてください",
+      };
+      return NextResponse.json(res, { status: 401 });
+    }
+
+    const image = await findImageById(id);
+    if (!image) {
+      const res: ApiResponse<null> = {
+        success: false,
+        payload: null,
+        message: "画像が見つかりませんでした。",
+      };
+      return NextResponse.json(res, { status: 404 });
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      include: { userGroups: true },
+    });
+    const groupIds = (user?.userGroups || []).map((ug) => ug.groupId);
+
+    if (!image.groupId || !groupIds.includes(image.groupId)) {
+      const res: ApiResponse<null> = {
+        success: false,
+        payload: null,
+        message: "この画像を削除する権限がありません。",
+      };
+      return NextResponse.json(res, { status: 403 });
+    }
+
     const deletedImage = await prisma.image.delete({
       where: { id },
     });

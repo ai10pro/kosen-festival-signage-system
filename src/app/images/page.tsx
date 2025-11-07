@@ -1,12 +1,27 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import Spinner from "@/components/Spinner";
 import Image from "next/image";
 
+type ImageItem = {
+  id: string;
+  storageUrl: string;
+  fileHash?: string;
+  order: number;
+  contentId: string;
+  groupId?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
 export default function ImageListPage() {
-  const [images, setImages] = useState([]);
+  const [images, setImages] = useState<ImageItem[]>([]);
+  const [groups, setGroups] = useState<{ id: string; name: string }[]>([]);
+  // contentId -> title map (fetched once per content)
+  const [contentsMap, setContentsMap] = useState<Record<string, string>>({});
+  const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -20,38 +35,112 @@ export default function ImageListPage() {
     try {
       const res = await fetch(`/api/images/${id}`, {
         method: "DELETE",
+        credentials: "same-origin",
       });
-      const data = await res.json();
 
+      if (!res.ok) {
+        // Try to parse json error if present
+        try {
+          const err = await res.json();
+          setError(err?.message || `削除に失敗しました (status ${res.status})`);
+        } catch (err) {
+          console.error(err);
+          setError(
+            `削除に失敗しました (status ${res.status} ${res.statusText})`
+          );
+        }
+        return;
+      }
+
+      const data = await res.json();
       if (data.success) {
         alert("画像を削除しました。");
       } else {
         setError(data.message);
       }
     } catch (e) {
+      // ネットワークエラー等
       setError(String(e));
     } finally {
       setLoading(false);
-      fetchImages();
+      // 再フェッチ（現在選択中のグループで）
+      fetchImages(selectedGroupId);
     }
   };
 
-  const fetchImages = async () => {
+  const fetchImages = useCallback(async (groupId?: string | null) => {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch("/api/images");
+      const url = groupId
+        ? `/api/images?groupId=${encodeURIComponent(groupId)}`
+        : "/api/images";
+      const res = await fetch(url, { credentials: "same-origin" });
+
+      if (!res.ok) {
+        try {
+          const err = await res.json();
+          setError(err?.message || `取得に失敗しました (status ${res.status})`);
+        } catch (err) {
+          console.error(err);
+          setError(
+            `取得に失敗しました (status ${res.status} ${res.statusText})`
+          );
+        }
+        return;
+      }
+
       const data = await res.json();
 
       if (data.success) {
-        // // 画像をcontentIdでソート後，order順に並び替え
-        // const sortedImages = data.payload.sort((a, b) => {
-        //   if (a.contentId === b.contentId) {
-        //     return a.order - b.order;
-        //   }
-        //   return a.contentId.localeCompare(b.contentId);
-        // });
-        setImages(data.payload);
+        // 画像をcontentIdでソート後，order順に並び替え
+        const sortedImages = (data.payload as ImageItem[]).sort((a, b) => {
+          if (a.contentId === b.contentId) {
+            return a.order - b.order;
+          }
+          return a.contentId.localeCompare(b.contentId);
+        });
+        setImages(sortedImages);
+
+        // fetch title for each unique contentId (only ones not already fetched)
+        const uniqueContentIds = Array.from(
+          new Set(sortedImages.map((img) => img.contentId))
+        );
+
+        // Use functional updater to read current contentsMap and trigger fetches
+        setContentsMap((prev) => {
+          const missing = uniqueContentIds.filter((cid) => !(cid in prev));
+          if (missing.length > 0) {
+            (async () => {
+              try {
+                const results = await Promise.all(
+                  missing.map(async (cid) => {
+                    try {
+                      const r = await fetch(`/api/contents/${cid}`, {
+                        credentials: "same-origin",
+                      });
+                      if (!r.ok) return { cid, title: undefined };
+                      const json = await r.json();
+                      const title = json?.title ?? json?.payload?.title;
+                      return { cid, title };
+                    } catch {
+                      return { cid, title: undefined };
+                    }
+                  })
+                );
+                const map: Record<string, string> = {};
+                results.forEach((res) => {
+                  if (res.title) map[res.cid] = res.title;
+                });
+                if (Object.keys(map).length > 0)
+                  setContentsMap((p) => ({ ...p, ...map }));
+              } catch (e) {
+                console.error("failed to fetch content titles", e);
+              }
+            })();
+          }
+          return prev;
+        });
       } else {
         setError(data.message);
       }
@@ -60,22 +149,94 @@ export default function ImageListPage() {
     } finally {
       setLoading(false);
     }
-  };
-
-  useEffect(() => {
-    fetchImages();
   }, []);
+
+  // fetchGroups runs once on mount; fetchImages is memoized with useCallback
+  useEffect(() => {
+    // まず所属グループを取得してから画像を取得
+    const fetchGroups = async () => {
+      setLoading(true);
+      try {
+        const res = await fetch("/api/user/groups", {
+          credentials: "same-origin",
+        });
+
+        if (!res.ok) {
+          try {
+            const err = await res.json();
+            setError(
+              err?.message ||
+                `グループ取得に失敗しました (status ${res.status})`
+            );
+          } catch (err) {
+            console.error(err);
+            setError(
+              `グループ取得に失敗しました (status ${res.status} ${res.statusText})`
+            );
+          }
+          return;
+        }
+
+        const data = await res.json();
+        if (data.success) {
+          const g = data.payload || [];
+          setGroups(g);
+          // デフォルト選択：グループが1件以上なら最初のグループを選択
+          if (g.length === 1) {
+            setSelectedGroupId(g[0].id);
+            await fetchImages(g[0].id);
+          } else if (g.length > 1) {
+            // 複数ある場合は最初のグループを選択して表示（ユーザーは後で切替可能）
+            setSelectedGroupId(g[0].id);
+            await fetchImages(g[0].id);
+          } else {
+            // 所属グループが無い場合は空配列を表示
+            setImages([]);
+            setLoading(false);
+          }
+        } else {
+          setError(data.message || "グループ取得エラー");
+        }
+      } catch (e) {
+        setError(String(e));
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchGroups();
+  }, []);
+
+  const handleGroupChange = async (groupId: string) => {
+    setSelectedGroupId(groupId);
+    await fetchImages(groupId);
+  };
 
   return (
     <main className="max-w-3xl mx-auto p-6">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-semibold">画像一覧</h1>
-        <Link
-          href="/images/upload"
-          className="px-4 py-2 bg-blue-600 text-white rounded"
-        >
-          画像をアップロード
-        </Link>
+        <div className="flex items-center gap-3">
+          {groups.length > 1 && (
+            <select
+              value={selectedGroupId ?? ""}
+              onChange={(e) => handleGroupChange(e.target.value)}
+              className="px-3 py-2 border rounded"
+            >
+              {groups.map((g) => (
+                <option key={g.id} value={g.id}>
+                  {g.name}
+                </option>
+              ))}
+            </select>
+          )}
+          <Link
+            href="/images/upload"
+            className="px-4 py-2 bg-blue-600 text-white rounded"
+          >
+            画像をアップロード
+          </Link>
+        </div>
       </div>
 
       {loading && (
@@ -87,15 +248,20 @@ export default function ImageListPage() {
       {error && <p className="text-red-600">エラー: {error}</p>}
 
       <ul className="space-y-2">
-        {images.map((image: any) => (
+        {images.map((image) => (
           <li
             key={image.id}
             className="flex items-center justify-between p-3 border rounded"
           >
             <div>
-              <p className="font-medium">Content ID: {image.contentId}</p>
+              <p className="font-medium">
+                Content:{" "}
+                <Link href={`/content/${image.contentId}`}>
+                  {contentsMap[image.contentId] ?? image.contentId}
+                </Link>
+              </p>
               <p className="text-sm text-gray-500">ID: {image.id}</p>
-              <p className="text-sm text-gray-500">Order: {image.order}</p>
+              {/* Order フィールドは存在しないため表示しない */}
             </div>
             <div className="space-x-2">
               <Image

@@ -1,9 +1,10 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { ChangeEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Spinner from "@/components/Spinner";
-import type { CreateImageRequest } from "@/app/_types/ImageRequest";
+// Image request types are handled on server; keep UI lightweight.
+import { supabase } from "@/utils/supabase";
 
 export default function ImageUploadPage() {
   const router = useRouter();
@@ -13,12 +14,47 @@ export default function ImageUploadPage() {
   const [contentId, setContentId] = useState("");
   const [order, setOrder] = useState(0);
 
+  const bucketName = "content_image";
+  const [imageUrl, setImageUrl] = useState<string | undefined>();
+  const [imageKey, setImageKey] = useState<string | undefined>();
+
+  const handleImageChange = async (e: ChangeEvent<HTMLInputElement>) => {
+    setImageKey(undefined);
+    setImageUrl(undefined);
+
+    if (!e.target.files || e.target.files.length === 0) return;
+    const file = e.target.files?.[0];
+
+    if (file.type !== "image/jpeg" && file.type !== "image/png") {
+      window.alert("JPEGまたはPNG形式の画像を選択してください");
+      return;
+    }
+
+    const path = `public/exhibition/${file.name}`;
+    const { data, error } = await supabase.storage
+      .from(bucketName)
+      .upload(path, file, { upsert: true });
+
+    if (error || !data) {
+      console.error("upload error:", error);
+      window.alert(`アップロードに失敗 ${error.message}`);
+      return;
+    }
+    // 画像のキー (実質的にバケット内のパス) を取得
+    setImageKey(data.path);
+    const publicUrlResult = supabase.storage
+      .from(bucketName)
+      .getPublicUrl(data.path);
+    // 画像のURLを取得
+    setImageUrl(publicUrlResult.data.publicUrl);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
 
-    const newImage: CreateImageRequest = {
+    const newImage = {
       storageUrl,
       contentId,
       order,
@@ -42,6 +78,18 @@ export default function ImageUploadPage() {
   return (
     <main className="max-w-2xl mx-auto p-6">
       <h1 className="text-2xl font-semibold mb-4">画像をアップロード</h1>
+      <div className="mb-4">
+        <div>
+          <input
+            id="imgSelector"
+            type="file" // ファイルを選択するinput要素に設定
+            accept="image/*" // 画像ファイルのみを選択可能に設定
+            onChange={handleImageChange}
+          />
+          <div className="break-all text-sm">coverImageKey : {imageKey}</div>
+          <div className="break-all text-sm">coverImageUrl : {imageUrl}</div>
+        </div>
+      </div>
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
           <label className="block text-sm font-medium mb-1">
@@ -70,7 +118,7 @@ export default function ImageUploadPage() {
           <input
             type="number"
             value={order}
-            onChange={(e) => setOrder(parseInt(e.target.value))}
+            onChange={(e) => setOrder(parseInt(e.target.value || "0"))}
             className="w-full p-2 border rounded"
             placeholder="例: 1"
             required

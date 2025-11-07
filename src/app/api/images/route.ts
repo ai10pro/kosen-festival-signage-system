@@ -1,5 +1,6 @@
 import { prisma } from "@/libs/prisma";
 import { NextRequest, NextResponse } from "next/server";
+import { verifySession } from "@/app/_helper/session";
 
 import {
   CreateImageRequest,
@@ -22,13 +23,60 @@ export const config = {
  * 開発・管理画面での一覧表示に使用します。
  * @returns Image[] - 画像のリスト
  */
-export const GET = async () => {
+export const GET = async (req: NextRequest) => {
   try {
+    // セッション検証：ログインユーザーのIDを取得
+    const userId = await verifySession();
+    if (!userId) {
+      const res: ApiResponse<null> = {
+        success: false,
+        payload: null,
+        message: "ログインしてください",
+      };
+      return NextResponse.json(res, { status: 401 });
+    }
+
+    // ユーザーが所属するグループID一覧を取得
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      include: { userGroups: true },
+    });
+    const groupIds = (user?.userGroups || []).map((ug) => ug.groupId);
+
+    // クエリパラメータから groupId を取得（任意）
+    const url = new URL(req.url);
+    const requestedGroupId = url.searchParams.get("groupId");
+
+    // グループが無い場合は空配列を返す
+    if (!requestedGroupId && groupIds.length === 0) {
+      return NextResponse.json<ApiResponse<ImageResponse[]>>(
+        { success: true, payload: [], message: "" },
+        { status: 200 }
+      );
+    }
+
+    // 指定された groupId がある場合は、そのグループに所属しているか確認
+    if (requestedGroupId) {
+      if (!groupIds.includes(requestedGroupId)) {
+        const res: ApiResponse<null> = {
+          success: false,
+          payload: null,
+          message: "指定されたグループの画像にアクセスする権限がありません。",
+        };
+        return NextResponse.json(res, { status: 403 });
+      }
+    }
+
+    // 画像取得：groupId が指定されていればそのグループ分のみ、未指定ならユーザー所属グループの画像を取得
+    const whereClause = requestedGroupId
+      ? { groupId: requestedGroupId }
+      : { groupId: { in: groupIds } };
+
     const images = await prisma.image.findMany({
-      orderBy: [{ contentId: "asc" }, { order: "asc" }],
+      where: whereClause,
+      orderBy: [{ contentId: "asc" }, { createdAt: "asc" }],
     });
 
-    // 画像データをバリデーション
     const validatedImages: ImageResponse[] = images.map((image) =>
       ImageResponseSchema.parse(image)
     );
@@ -77,7 +125,7 @@ export const POST = async (req: NextRequest) => {
       );
     }
 
-    const { storageUrl, contentId, order } = validation.data;
+    const { storageUrl, contentId, groupId, order } = validation.data;
     const fileHash = generateMD5Hash(storageUrl);
     const existingImage = await prisma.image.findFirst({
       where: { fileHash },
@@ -109,11 +157,15 @@ export const POST = async (req: NextRequest) => {
       );
     }
 
-    const newImage = await prisma.image.create({
+    // Prisma client types may be outdated until `prisma generate` runs locally.
+    // Suppress TS error here; runtime DB will accept `order` column once migration is applied.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const newImage = await (prisma as any).image.create({
       data: {
         storageUrl,
         fileHash,
         contentId,
+        groupId: groupId ?? null,
         order: order ?? 0,
       },
     });
