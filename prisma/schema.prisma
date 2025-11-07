@@ -131,7 +131,8 @@ model Image {
   group           Group?   @relation(fields: [groupId], references: [id])
   groupId         String?  @map("group_id")
 
-  content         Content  @relation(fields: [contentId], references: [id])
+  // コンテンツ削除時に関連する画像も自動削除するために onDelete: Cascade を設定
+  content         Content  @relation(fields: [contentId], references: [id], onDelete: Cascade)
   contentId       String   @map("content_id")
 
   @@map("images")
