@@ -243,8 +243,10 @@ export const DELETE = async (
       include: { userGroups: true },
     });
     const groupIds = (user?.userGroups || []).map((ug) => ug.groupId);
+    // ADMIN ロールのユーザーは削除を許可
+    const isAdmin = user?.role === "ADMIN";
 
-    if (!image.groupId || !groupIds.includes(image.groupId)) {
+    if (!isAdmin && (!image.groupId || !groupIds.includes(image.groupId))) {
       const res: ApiResponse<null> = {
         success: false,
         payload: null,

@@ -157,9 +157,6 @@ export const POST = async (req: NextRequest) => {
       );
     }
 
-    // Prisma client types may be outdated until `prisma generate` runs locally.
-    // Suppress TS error here; runtime DB will accept `order` column once migration is applied.
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const newImage = await (prisma as any).image.create({
       data: {
         storageUrl,
