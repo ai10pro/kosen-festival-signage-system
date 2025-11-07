@@ -142,7 +142,7 @@ async function main() {
       contentId: testContent.id,
       storageUrl: "https://placehold.jp/3d4070/ffffff/600x400.png",
       fileHash: "hash-001",
-      order: 1,
+      groupId: groupA.id,
     },
   });
 
@@ -151,7 +151,7 @@ async function main() {
       contentId: testContent.id,
       storageUrl: "https://placehold.jp/15bca9/ffffff/600x400.png",
       fileHash: "hash-002",
-      order: 2,
+      groupId: groupB.id,
     },
   });
   console.log(`Created 2 images for the test content.`);

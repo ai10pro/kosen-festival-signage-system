@@ -1,12 +1,14 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, ChangeEvent } from "react";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
 import Spinner from "@/components/Spinner";
+import { supabase } from "@/utils/supabase";
+import { generateMD5Hash } from "@/app/_helper/generateHash";
 
 type Group = { id: string; name: string };
-type ImageInput = { url: string };
+type ImageInput = { url: string; id?: string; storageKey?: string };
 
 export default function ContentEditPage() {
   const router = useRouter();
@@ -49,9 +51,12 @@ export default function ContentEditPage() {
         setDescription(contentData.description ?? "");
         setGroupId(contentData.group?.id ?? contentData.groupId ?? "");
         setImages(
-          (contentData.images || []).map((im: { storageUrl: string }) => ({
-            url: im.storageUrl,
-          }))
+          (contentData.images || []).map(
+            (im: { storageUrl: string; id: string }) => ({
+              url: im.storageUrl,
+              id: im.id,
+            })
+          )
         );
         setGroups(groupsResp.payload ?? []);
       })
@@ -66,10 +71,6 @@ export default function ContentEditPage() {
       sel === null ? null : sel === idx ? null : sel > idx ? sel - 1 : sel
     );
   };
-  const onChangeImage = (idx: number, value: string) =>
-    setImages((s) =>
-      s.map((it, i) => (i === idx ? { ...it, url: value } : it))
-    );
 
   const onClickImageItem = (idx: number) => {
     if (selectedImageIndex === null) {
@@ -120,6 +121,86 @@ export default function ContentEditPage() {
       setError(String(e));
     } finally {
       setSaving(false);
+    }
+  };
+
+  const bucketName = "content_image";
+
+  const handleFileChange = async (
+    idx: number,
+    e: ChangeEvent<HTMLInputElement>
+  ) => {
+    if (!e.target.files || e.target.files.length === 0) return;
+    const file = e.target.files[0];
+    if (!file) return;
+    const ext = file.name.includes(".")
+      ? file.name.substring(file.name.lastIndexOf("."))
+      : "";
+    const hashed = generateMD5Hash(file.name + "-" + Date.now());
+    const path = `public/exhibition/${hashed}${ext}`;
+    const { data, error } = await supabase.storage
+      .from(bucketName)
+      .upload(path, file, { upsert: true });
+    if (error || !data) {
+      console.error("upload error:", error);
+      window.alert(
+        `アップロードに失敗しました: ${error?.message || "unknown"}`
+      );
+      return;
+    }
+    const publicUrlResult = supabase.storage
+      .from(bucketName)
+      .getPublicUrl(data.path);
+    const publicUrl = publicUrlResult.data.publicUrl;
+
+    // 既存画像（DBにレコードがある）なら PATCH、それ以外は POST して新規作成
+    const existing = images[idx];
+    if (existing && existing.id) {
+      // PATCH
+      try {
+        const res = await fetch(`/api/images/${existing.id}`, {
+          method: "PATCH",
+          credentials: "same-origin",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ storageUrl: publicUrl, order: idx }),
+        });
+        if (!res.ok) throw new Error(`画像更新に失敗しました (${res.status})`);
+        // 更新に成功したら state 更新
+        setImages((s) =>
+          s.map((it, i) =>
+            i === idx ? { ...it, url: publicUrl, storageKey: data.path } : it
+          )
+        );
+      } catch (err) {
+        window.alert(String(err));
+      }
+    } else {
+      // POST 新規画像登録
+      try {
+        const payload = { storageUrl: publicUrl, contentId: id, order: idx };
+        const res = await fetch(`/api/images`, {
+          method: "POST",
+          credentials: "same-origin",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        if (!res.ok) throw new Error(`画像作成に失敗しました (${res.status})`);
+        const json = await res.json();
+        const created = json.payload;
+        setImages((s) =>
+          s.map((it, i) =>
+            i === idx
+              ? {
+                  url: created.storageUrl,
+                  id: created.id,
+                  storageKey: data.path,
+                }
+              : it
+          )
+        );
+      } catch (err) {
+        window.alert(String(err));
+      }
     }
   };
 
@@ -245,12 +326,28 @@ export default function ContentEditPage() {
               <div className="w-8 text-center text-sm text-gray-600">
                 {idx + 1}
               </div>
-              <input
-                className="flex-1 p-2 border rounded"
-                placeholder="画像URL"
-                value={img.url}
-                onChange={(e) => onChangeImage(idx, e.target.value)}
-              />
+              <div className="flex-1">
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => {
+                    e.stopPropagation();
+                    handleFileChange(idx, e);
+                  }}
+                />
+                {img.url && (
+                  <div className="mt-2">
+                    <img
+                      src={img.url}
+                      alt={`preview-${idx}`}
+                      className="max-h-40 object-contain"
+                    />
+                    <div className="text-sm break-all text-gray-600">
+                      {img.url}
+                    </div>
+                  </div>
+                )}
+              </div>
               <button
                 type="button"
                 className="px-3 py-1 bg-red-600 text-white rounded"

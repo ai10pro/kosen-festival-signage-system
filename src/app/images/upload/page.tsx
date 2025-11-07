@@ -3,7 +3,7 @@
 import React, { ChangeEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Spinner from "@/components/Spinner";
-import type { CreateImageRequest } from "@/app/_types/ImageRequest";
+// Image request types are handled on server; keep UI lightweight.
 import { supabase } from "@/utils/supabase";
 
 export default function ImageUploadPage() {
@@ -14,7 +14,7 @@ export default function ImageUploadPage() {
   const [contentId, setContentId] = useState("");
   const [order, setOrder] = useState(0);
 
-  const bucketName = "content_image/exhibition";
+  const bucketName = "content_image";
   const [imageUrl, setImageUrl] = useState<string | undefined>();
   const [imageKey, setImageKey] = useState<string | undefined>();
 
@@ -30,12 +30,13 @@ export default function ImageUploadPage() {
       return;
     }
 
-    const path = `private/${file.name}`;
+    const path = `public/exhibition/${file.name}`;
     const { data, error } = await supabase.storage
       .from(bucketName)
       .upload(path, file, { upsert: true });
 
     if (error || !data) {
+      console.error("upload error:", error);
       window.alert(`アップロードに失敗 ${error.message}`);
       return;
     }
@@ -53,7 +54,7 @@ export default function ImageUploadPage() {
     setLoading(true);
     setError(null);
 
-    const newImage: CreateImageRequest = {
+    const newImage = {
       storageUrl,
       contentId,
       order,
@@ -117,7 +118,7 @@ export default function ImageUploadPage() {
           <input
             type="number"
             value={order}
-            onChange={(e) => setOrder(parseInt(e.target.value))}
+            onChange={(e) => setOrder(parseInt(e.target.value || "0"))}
             className="w-full p-2 border rounded"
             placeholder="例: 1"
             required

@@ -74,6 +74,7 @@ model Group {
   
   contents  Content[] @relation("Group")
   userGroups UserGroup[]
+  images    Image[]
 
   @@map("groups")
 }
@@ -125,11 +126,13 @@ model Image {
   updatedAt       DateTime @updatedAt @map("updated_at")
   storageUrl      String   @map("storage_url")
   fileHash        String   @map("file_hash")
+  order           Int      @default(0)
+
+  group           Group?   @relation(fields: [groupId], references: [id])
+  groupId         String?  @map("group_id")
 
   content         Content  @relation(fields: [contentId], references: [id])
   contentId       String   @map("content_id")
-
-  order           Int
 
   @@map("images")
 }

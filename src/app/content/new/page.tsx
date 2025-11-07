@@ -1,11 +1,13 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, ChangeEvent } from "react";
 import { useRouter } from "next/navigation";
 import Spinner from "@/components/Spinner";
+import { supabase } from "@/utils/supabase";
+import { generateMD5Hash } from "@/app/_helper/generateHash";
 
 type Group = { id: string; name: string };
-type ImageInput = { url: string };
+type ImageInput = { url: string; storageKey?: string };
 
 export default function ContentCreatePage() {
   const router = useRouter();
@@ -48,10 +50,43 @@ export default function ContentCreatePage() {
       sel === null ? null : sel === i ? null : sel > i ? sel - 1 : sel
     );
   };
-  const changeImage = (i: number, value: string) =>
+  const bucketName = "content_image";
+
+  const handleFileChange = async (
+    i: number,
+    e: ChangeEvent<HTMLInputElement>
+  ) => {
+    if (!e.target.files || e.target.files.length === 0) return;
+    const file = e.target.files[0];
+    if (!file) return;
+    // 拡張子を取得
+    const ext = file.name.includes(".")
+      ? file.name.substring(file.name.lastIndexOf("."))
+      : "";
+    const hashed = generateMD5Hash(file.name + "-" + Date.now());
+    const path = `public/exhibition/${hashed}${ext}`;
+
+    const { data, error } = await supabase.storage
+      .from(bucketName)
+      .upload(path, file, { upsert: true });
+    if (error || !data) {
+      console.error("upload error:", error);
+      window.alert(
+        `アップロードに失敗しました: ${error?.message || "unknown"}`
+      );
+      return;
+    }
+    const publicUrlResult = supabase.storage
+      .from(bucketName)
+      .getPublicUrl(data.path);
+    const publicUrl = publicUrlResult.data.publicUrl;
     setImages((s) =>
-      s.map((it, idx) => (idx === i ? { ...it, url: value } : it))
+      s.map((it, idx) =>
+        idx === i ? { ...it, url: publicUrl, storageKey: data.path } : it
+      )
     );
+  };
+
   const onClickImageItem = (idx: number) => {
     if (selectedImageIndex === null) {
       setSelectedImageIndex(idx);
@@ -202,12 +237,28 @@ export default function ContentCreatePage() {
               <div className="w-8 text-center text-sm text-gray-600">
                 {idx + 1}
               </div>
-              <input
-                className="flex-1 p-2 border rounded"
-                placeholder="画像URL"
-                value={img.url}
-                onChange={(e) => changeImage(idx, e.target.value)}
-              />
+              <div className="flex-1">
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => {
+                    e.stopPropagation();
+                    handleFileChange(idx, e);
+                  }}
+                />
+                {img.url && (
+                  <div className="mt-2">
+                    <img
+                      src={img.url}
+                      alt={`preview-${idx}`}
+                      className="max-h-40 object-contain"
+                    />
+                    <div className="text-sm break-all text-gray-600">
+                      {img.url}
+                    </div>
+                  </div>
+                )}
+              </div>
               <button
                 type="button"
                 className="px-3 py-1 bg-red-600 text-white rounded"

@@ -29,9 +29,7 @@ export const GET = async () => {
     const contents = await prisma.content.findMany({
       orderBy: [{ createdAt: "desc" }],
       include: {
-        images: {
-          orderBy: { order: "asc" },
-        },
+        images: { orderBy: { createdAt: "asc" } },
         contentTags: { include: { tag: true } },
         uploader: { select: { id: true, username: true } },
         group: { select: { id: true, name: true } },
@@ -113,14 +111,15 @@ export const POST = async (req: NextRequest) => {
 
     // コンテンツIDを取得
     const newContentId = newContent.id;
-    // 画像データを登録
+    // 画像データを登録（order を保存）
     for (const image of images) {
-      await prisma.image.create({
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await (prisma as any).image.create({
         data: {
           storageUrl: image.url,
           fileHash: generateMD5Hash(image.url),
-          order: image.order,
           contentId: newContentId,
+          order: image.order ?? 0,
         },
       });
     }
@@ -128,9 +127,7 @@ export const POST = async (req: NextRequest) => {
     const createdContent = await prisma.content.findUnique({
       where: { id: newContentId },
       include: {
-        images: {
-          orderBy: { order: "asc" },
-        },
+        images: {},
       },
     });
 
