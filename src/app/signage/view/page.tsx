@@ -1,7 +1,7 @@
 "use client";
 import dummyData from "@/app/_mocks/dummyData";
 import Image from "next/image";
-import Timer from "@/app/_components/Timer"
+import Timer from "@/app/_components/Clock";
 import { useState, useEffect } from "react";
 
 const Signage: React.FC = () => {
@@ -37,7 +37,10 @@ const Signage: React.FC = () => {
           <div className="h-3/4 flex flex-col items-center justify-center text-4xl">
             <div>
               {content.description.split("\n").map((schedule, index) => (
-                <div key={index} className={`my-8 pl-4 border-l-8 ${getBorderColorClass(schedule)}`}>
+                <div
+                  key={index}
+                  className={`my-8 pl-4 border-l-8 ${getBorderColorClass(schedule)}`}
+                >
                   <p>
                     {"🕒" + schedule.substring(0, schedule.indexOf("～") + 1)}
                   </p>
