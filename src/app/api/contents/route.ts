@@ -8,7 +8,7 @@ import {
   createContentSchema,
 } from "@/app/_types/ContentRequest";
 import { verifySession } from "@/app/_helper/session";
-import { ContentStatus as PrismaContentStatus } from "@prisma/client";
+import { ContentStatus as PrismaContentStatus, Prisma } from "@prisma/client";
 import { getGroupIdFromUser } from "@/app/_helper/getGroup";
 import { generateMD5Hash } from "@/app/_helper/generateHash";
 
@@ -24,9 +24,65 @@ export const config = {
  * 開発・管理画面での一覧表示に使用します。
  * @returns Content[] - コンテンツのリスト
  */
-export const GET = async () => {
+export const GET = async (req: NextRequest) => {
   try {
+    // セッション検証：ログインユーザーのIDを取得
+    const userId = await verifySession();
+    if (!userId) {
+      const res: ApiResponse<null> = {
+        success: false,
+        payload: null,
+        message: "ログインしてください",
+      };
+      return NextResponse.json(res, { status: 401 });
+    }
+
+    // ユーザーの所属グループを取得（UserGroupオブジェクトの配列が返る）
+    const userGroups = await getGroupIdFromUser(userId);
+    if (!userGroups) {
+      return NextResponse.json(
+        { error: "ユーザーのグループ情報が見つかりません" },
+        { status: 400 }
+      );
+    }
+
+    // ユーザーの権限（ADMINかどうか）を取得
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { role: true },
+    });
+    const isAdmin = user?.role === "ADMIN";
+
+    // クエリパラメータから groupId が指定されているか確認
+    const groupIdFromQuery = req.nextUrl.searchParams.get("groupId");
+
+    // userGroups は UserGroup オブジェクト配列なので groupId の文字列配列に変換
+    const allowedGroupIds: string[] = Array.isArray(userGroups)
+      ? (userGroups as { groupId: string }[]).map((ug) => ug.groupId)
+      : [];
+
+    // 非管理者がクエリで他グループを指定している場合はアクセス不可
+    if (
+      !isAdmin &&
+      groupIdFromQuery &&
+      !allowedGroupIds.includes(groupIdFromQuery)
+    ) {
+      return NextResponse.json(
+        { error: "指定したグループにアクセス権がありません" },
+        { status: 403 }
+      );
+    }
+
+    // where 条件を組み立てる
+    let whereClause: Prisma.ContentWhereInput | undefined = undefined;
+    if (groupIdFromQuery) {
+      whereClause = { groupId: groupIdFromQuery };
+    } else if (!isAdmin) {
+      whereClause = { groupId: { in: allowedGroupIds } };
+    }
+
     const contents = await prisma.content.findMany({
+      where: whereClause,
       orderBy: [{ createdAt: "desc" }],
       include: {
         images: { orderBy: { createdAt: "asc" } },
@@ -37,11 +93,9 @@ export const GET = async () => {
       },
     });
 
-    // コンテンツデータをバリデーション
     const validatedContents: ContentResponse[] = contents.map(
       (content) => content as unknown as ContentResponse
     );
-
     return NextResponse.json(validatedContents, { status: 200 });
   } catch (error) {
     const errorMsg =
@@ -103,7 +157,12 @@ export const POST = async (req: NextRequest) => {
         description,
         status: PrismaContentStatus.PENDING,
         uploaderId: userId,
-        groupId: groupId ?? userGroups,
+        // userGroups is an array of UserGroup objects; default to the first groupId if groupId not provided
+        groupId:
+          groupId ??
+          (Array.isArray(userGroups)
+            ? (userGroups as { groupId: string }[])[0]?.groupId
+            : undefined),
         contentTags: {
           create: tagIds?.map((tagId) => ({ tagId })),
         },
@@ -122,6 +181,7 @@ export const POST = async (req: NextRequest) => {
           fileHash: generateMD5Hash(image.url),
           contentId: newContentId,
           order: image.order ?? 0,
+          groupId: newContent.groupId ?? null,
         },
       });
     }

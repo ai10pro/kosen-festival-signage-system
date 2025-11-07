@@ -161,6 +161,8 @@ export const PUT = async (req: NextRequest, routeParams: RouteParams) => {
       if (Array.isArray(images)) {
         await tx.image.deleteMany({ where: { contentId: id } });
         if (images.length > 0) {
+          // 更新後のコンテンツの groupId を決定
+          const targetGroupId = groupId ?? existing.groupId;
           for (const image of images) {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             await (tx as any).image.create({
@@ -169,6 +171,7 @@ export const PUT = async (req: NextRequest, routeParams: RouteParams) => {
                 fileHash: generateMD5Hash(image.url),
                 contentId: id,
                 order: image.order ?? 0,
+                groupId: targetGroupId ?? null,
               },
             });
           }
