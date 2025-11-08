@@ -21,6 +21,8 @@ export default function ContentCreatePage() {
   const [description, setDescription] = useState("");
   const [groupId, setGroupId] = useState<string>("");
   const [images, setImages] = useState<ImageInput[]>([]);
+  const [tags, setTags] = useState<{ id: string; name: string }[]>([]);
+  const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
   const [selectedImageIndex, setSelectedImageIndex] = useState<number | null>(
     null
   );
@@ -42,6 +44,23 @@ export default function ContentCreatePage() {
       .catch((e) => setError(String(e)))
       .finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => {
+    // load tags for selection
+    fetch("/api/tags", { credentials: "same-origin" })
+      .then((r) => {
+        if (!r.ok) throw new Error(`タグ取得に失敗しました (${r.status})`);
+        return r.json();
+      })
+      .then((data) => setTags(data ?? []))
+      .catch((e) => console.debug("failed to fetch tags", e));
+  }, []);
+
+  const toggleTag = (tagId: string) => {
+    setSelectedTagIds((s) =>
+      s.includes(tagId) ? s.filter((id) => id !== tagId) : [...s, tagId]
+    );
+  };
 
   const addImage = () => setImages((s) => [...s, { url: "" }]);
   const removeImage = async (i: number) => {
@@ -175,7 +194,7 @@ export default function ContentCreatePage() {
         description,
         groupId,
         images: payloadImages,
-        tagIds: [],
+        tagIds: selectedTagIds,
       };
       const res = await fetch(`/api/contents`, {
         method: "POST",
@@ -342,6 +361,29 @@ export default function ContentCreatePage() {
           >
             画像を追加
           </button>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium mb-1">タグ</label>
+          <div className="flex flex-wrap gap-2">
+            {tags.length === 0 ? (
+              <div className="text-sm text-gray-500">タグが見つかりません</div>
+            ) : (
+              tags.map((t) => {
+                const active = selectedTagIds.includes(t.id);
+                return (
+                  <button
+                    type="button"
+                    key={t.id}
+                    onClick={() => toggleTag(t.id)}
+                    className={`text-sm px-2 py-0.5 rounded ${active ? "bg-indigo-600 text-white" : "bg-gray-100 text-gray-700"}`}
+                  >
+                    {t.name}
+                  </button>
+                );
+              })
+            )}
+          </div>
         </div>
 
         <div className="flex gap-2">
