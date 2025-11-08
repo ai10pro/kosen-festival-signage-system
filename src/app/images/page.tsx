@@ -21,7 +21,8 @@ export default function ImageListPage() {
   const [groups, setGroups] = useState<{ id: string; name: string }[]>([]);
 
   // contentId -> title map (fetched once per content)
-  const [contentsMap, setContentsMap] = useState<Record<string, string>>({});
+  // no title fetching: show contentId to avoid extra API calls
+  // (previously we kept a contentsMap and fetched /api/contents/:id per content)
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -103,45 +104,8 @@ export default function ImageListPage() {
           return a.contentId.localeCompare(b.contentId);
         });
         setImages(sortedImages);
-        // fetch title for each unique contentId (only ones not already fetched)
-        const uniqueContentIds = Array.from(
-          new Set(sortedImages.map((img) => img.contentId))
-        );
-
-        // Use functional updater to read current contentsMap and trigger fetches
-        setContentsMap((prev) => {
-          const missing = uniqueContentIds.filter((cid) => !(cid in prev));
-          if (missing.length > 0) {
-            (async () => {
-              try {
-                const results = await Promise.all(
-                  missing.map(async (cid) => {
-                    try {
-                      const r = await fetch(`/api/contents/${cid}`, {
-                        credentials: "same-origin",
-                      });
-                      if (!r.ok) return { cid, title: undefined };
-                      const json = await r.json();
-                      const title = json?.title ?? json?.payload?.title;
-                      return { cid, title };
-                    } catch {
-                      return { cid, title: undefined };
-                    }
-                  })
-                );
-                const map: Record<string, string> = {};
-                results.forEach((res) => {
-                  if (res.title) map[res.cid] = res.title;
-                });
-                if (Object.keys(map).length > 0)
-                  setContentsMap((p) => ({ ...p, ...map }));
-              } catch (e) {
-                console.error("failed to fetch content titles", e);
-              }
-            })();
-          }
-          return prev;
-        });
+        // NOTE: Avoid fetching content titles to prevent extra /api/contents/:id calls
+        // We will display contentId directly to avoid Supabase / Prisma rate/limits.
       } else {
         setError(data.message);
       }
@@ -285,9 +249,10 @@ export default function ImageListPage() {
                 <div>
                   <p className="font-medium">
                     Content:{" "}
-                    <Link href={`/content/${image.contentId}`}>
-                      {contentsMap[image.contentId] ?? image.contentId}
+                    <Link href={`/content/${image.contentId}`} prefetch={false}>
+                      {image.contentId}
                     </Link>
+                    {/* disable Link prefetch to avoid automatic prefetching requests */}
                   </p>
                   <p className="text-sm text-gray-500">ID: {image.id}</p>
                   {/* Order フィールドは存在しないため表示しない */}
