@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+// React hooks not required in this component
+// import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { twMerge } from "tailwind-merge";
 
@@ -159,7 +160,33 @@ const ExhibitorMockDate = {
   ],
 };
 
-const selectUser = ExhibitorMockDate;
+type ContentSummary = { id: string; title: string; status: string };
+
+type AdminData = {
+  user: { id: string; name: string; role: "ADMIN" };
+  contents: ContentSummary[];
+};
+
+type ViewerData = {
+  user: { id: string; name: string; role: "VIEWER" };
+  config: {
+    viewContentTimeSec: number;
+    groups: { id: string; name: string }[];
+  };
+};
+
+type ExhibitorData = {
+  user: { id: string; name: string; role: "EXHIBITOR" };
+  groups: { id: string; name: string }[];
+  contents: ContentSummary[];
+};
+
+type UserData = AdminData | ViewerData | ExhibitorData;
+
+const selectUser: UserData = ExhibitorMockDate as unknown as UserData;
+// ensure mock constants are referenced so they're not reported as unused by the linter
+void AdminMockDate;
+void ViewerMockDate;
 
 const UserRole = selectUser.user.role as "ADMIN" | "VIEWER" | "EXHIBITOR";
 
@@ -189,12 +216,12 @@ export default function Home() {
               ></p>
             </div>
             {/* Admin ⇒ コンテンツ一覧 */}
-            {UserRole === "ADMIN" && (
+            {UserRole === "ADMIN" && "contents" in selectUser && (
               <div className="bg-white p-4 h-4/5 overflow-auto">
                 <h2 className="text-xl font-bold mb-2 border-b-2">
                   コンテンツ一覧
                 </h2>
-                {selectUser.contents.map((content) => (
+                {selectUser.contents.map((content: ContentSummary) => (
                   <div
                     key={content.id}
                     className="border-b border-gray-300 py-2"
@@ -233,77 +260,88 @@ export default function Home() {
               </div>
             )}
             {/* Viewer ⇒ 表示グループ一覧 */}
-            {UserRole === "VIEWER" && (
+            {UserRole === "VIEWER" && "config" in selectUser && (
               <div className="bg-white p-4 h-4/5 overflow-auto">
                 <h2 className="text-xl font-bold mb-2 border-b-2">
                   表示グループ一覧
                 </h2>
-                {selectUser.config.groups.map((group) => (
-                  <div key={group.id} className="border-b border-gray-300 py-2">
-                    <h3 className="text-lg font-semibold">{group.name}</h3>
-                  </div>
-                ))}
-              </div>
-            )}
-            {/* Exhibitor ⇒ 所属グループとコンテンツの一覧 */}
-            {UserRole === "EXHIBITOR" && (
-              <div className="h-4/5 flex flex-col ">
-                <div className="bg-white p-4 h-1/2 overflow-auto">
-                  <h2 className="text-xl font-bold mb-2 border-b-2">
-                    所属グループ一覧
-                  </h2>
-                  {selectUser.groups.map((group) => (
+                {selectUser.config.groups.map(
+                  (group: { id: string; name: string }) => (
                     <div
                       key={group.id}
                       className="border-b border-gray-300 py-2"
                     >
                       <h3 className="text-lg font-semibold">{group.name}</h3>
                     </div>
-                  ))}
-                </div>
-                <div className="bg-white p-4 h-1/2 overflow-auto border-t-4 border-sky-100">
-                  <h2 className="text-xl font-bold my-4 border-b-2">
-                    コンテンツ一覧
-                  </h2>
-                  {selectUser.contents.map((content) => (
-                    <div
-                      key={content.id}
-                      className="border-b border-gray-300 py-2"
-                    >
-                      <div className="flex justify-between items-center">
-                        <div className="">
-                          <h3 className="text-lg font-semibold">
-                            {content.title}
-                          </h3>
-                          <p className="text-sm text-gray-600">
-                            ステータス:{" "}
-                            <span
-                              className={twMerge(
-                                content.status === "APPROVED"
-                                  ? "bg-green-600 font-bold text-white"
-                                  : content.status === "REJECTED"
-                                    ? "bg-red-600 font-bold text-white"
-                                    : "bg-yellow-600 font-bold text-white"
-                              )}
-                            >
-                              {content.status}
-                            </span>
-                          </p>
-                        </div>
-                        <div className="">
-                          <Link
-                            href={`/exhibitor/contents/${content.id}`}
-                            className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition-colors duration-300"
-                          >
-                            詳細
-                          </Link>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                  )
+                )}
               </div>
             )}
+            {/* Exhibitor ⇒ 所属グループとコンテンツの一覧 */}
+            {UserRole === "EXHIBITOR" &&
+              "groups" in selectUser &&
+              "contents" in selectUser && (
+                <div className="h-4/5 flex flex-col ">
+                  <div className="bg-white p-4 h-1/2 overflow-auto">
+                    <h2 className="text-xl font-bold mb-2 border-b-2">
+                      所属グループ一覧
+                    </h2>
+                    {selectUser.groups.map(
+                      (group: { id: string; name: string }) => (
+                        <div
+                          key={group.id}
+                          className="border-b border-gray-300 py-2"
+                        >
+                          <h3 className="text-lg font-semibold">
+                            {group.name}
+                          </h3>
+                        </div>
+                      )
+                    )}
+                  </div>
+                  <div className="bg-white p-4 h-1/2 overflow-auto border-t-4 border-sky-100">
+                    <h2 className="text-xl font-bold my-4 border-b-2">
+                      コンテンツ一覧
+                    </h2>
+                    {selectUser.contents.map((content: ContentSummary) => (
+                      <div
+                        key={content.id}
+                        className="border-b border-gray-300 py-2"
+                      >
+                        <div className="flex justify-between items-center">
+                          <div className="">
+                            <h3 className="text-lg font-semibold">
+                              {content.title}
+                            </h3>
+                            <p className="text-sm text-gray-600">
+                              ステータス:{" "}
+                              <span
+                                className={twMerge(
+                                  content.status === "APPROVED"
+                                    ? "bg-green-600 font-bold text-white"
+                                    : content.status === "REJECTED"
+                                      ? "bg-red-600 font-bold text-white"
+                                      : "bg-yellow-600 font-bold text-white"
+                                )}
+                              >
+                                {content.status}
+                              </span>
+                            </p>
+                          </div>
+                          <div className="">
+                            <Link
+                              href={`/exhibitor/contents/${content.id}`}
+                              className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition-colors duration-300"
+                            >
+                              詳細
+                            </Link>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
           </div>
         </div>
         <div className="h-2/5 py-2">

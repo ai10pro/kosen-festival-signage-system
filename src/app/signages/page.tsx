@@ -3,28 +3,14 @@
 import React, { useEffect, useState } from "react";
 import Spinner from "@/components/Spinner";
 import Link from "next/link";
-
-type GroupWithImages = {
-  id: string;
-  name?: string | null;
-  imageContentIds?: string[];
-};
-
-type SignageItem = {
-  id: string;
-  uniqueKey: string;
-  locationName: string;
-  lastActiveAt?: string | null;
-  contentSettings: Array<{
-    signageId: string;
-    groupId: string;
-    order: number;
-    group?: GroupWithImages | null;
-  }>;
-};
+import type {
+  RawSignage,
+  RawContentSetting,
+  SignageItem as SignageItemType,
+} from "@/_types/Signage";
 
 export default function SignagesPage() {
-  const [signages, setSignages] = useState<SignageItem[]>([]);
+  const [signages, setSignages] = useState<SignageItemType[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -42,31 +28,40 @@ export default function SignagesPage() {
             j?.message || `failed to fetch signages (${res.status})`
           );
         }
-        const json = await res.json();
+        const json = (await res.json()) as {
+          success?: boolean;
+          message?: string;
+          payload?: RawSignage[];
+        };
         if (!json?.success)
           throw new Error(json?.message || "failed to fetch signages");
 
         // normalize shape if necessary
-        const items: SignageItem[] = (json.payload || []).map((s: any) => ({
-          id: s.id,
-          uniqueKey: s.uniqueKey,
-          locationName: s.locationName,
-          lastActiveAt: s.lastActiveAt ?? null,
-          contentSettings: (s.contentSettings || []).map((cs: any) => ({
-            signageId: cs.signageId ?? s.id,
-            groupId: cs.group?.id ?? cs.groupId,
-            order: cs.order ?? 0,
-            group: {
-              id: cs.group?.id ?? cs.groupId ?? "",
-              name: cs.group?.name ?? null,
-              imageContentIds: cs.imageContentIds ?? [],
-            },
-          })),
-        }));
+        const items: SignageItemType[] = (json.payload || []).map(
+          (s: RawSignage) => ({
+            id: s.id,
+            uniqueKey: s.uniqueKey,
+            locationName: s.locationName,
+            lastActiveAt: s.lastActiveAt ?? null,
+            contentSettings: (s.contentSettings || []).map(
+              (cs: RawContentSetting) => ({
+                signageId: cs.signageId ?? s.id,
+                groupId: cs.group?.id ?? cs.groupId ?? "",
+                order: cs.order ?? 0,
+                group: {
+                  id: cs.group?.id ?? cs.groupId ?? "",
+                  name: cs.group?.name ?? null,
+                  imageContentIds:
+                    cs.imageContentIds ?? cs.group?.imageContentIds ?? [],
+                },
+              })
+            ),
+          })
+        );
 
         setSignages(items);
-      } catch (e: any) {
-        setError(e?.message ?? String(e));
+      } catch (e: unknown) {
+        setError(e instanceof Error ? e.message : String(e));
       } finally {
         setLoading(false);
       }
