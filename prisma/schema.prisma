@@ -6,9 +6,10 @@ generator client {
 }
 
 datasource db {
-  provider  = "postgresql"
+  provider  = "sqlite"
   url       = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
+  // directUrl is left for environments that use a different direct URL; not used for sqlite
+  // directUrl = env("DIRECT_URL")
 }
 
 // ------------------------------

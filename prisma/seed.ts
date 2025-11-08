@@ -171,18 +171,20 @@ async function main() {
   // ----------------------------------------------------
   // 10. サイネージへのコンテンツ表示順設定 (SignageContent)
   // ----------------------------------------------------
+  // SignageContent スキーマを contentId -> groupId に変更したため、
+  // seed も group 単位での割当に更新します。
   await prisma.signageContent.upsert({
     where: {
-      signageId_contentId: {
+      signageId_groupId: {
         signageId: signageEntrance.id,
-        contentId: testContent.id,
+        groupId: groupA.id,
       },
     },
     update: {},
     create: {
       signageId: signageEntrance.id,
-      contentId: testContent.id,
-      order: 1, // サイネージ上での表示順序
+      groupId: groupA.id,
+      order: 1, // サイネージ上での表示順序（グループ単位）
     },
   });
   console.log(
