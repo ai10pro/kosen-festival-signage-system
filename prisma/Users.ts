@@ -1,16 +1,40 @@
 import { Role } from "@prisma/client";
-import { group } from "console";
+
 const Users = [
   {
     username: "admin",
-    password: "adminpassword",
+    password: "drowssapnimda",
     role: Role.ADMIN,
   },
   {
-    username: "exhibitor",
-    password: "exhibitorpassword",
-    role: Role.EXHIBITOR,
-    group: "A",
+    username: "ras-01",
+    password: "aaaaaaaaaa",
+    role: Role.VIEWER
+  },
+  {
+    username: "ras-02",
+    password: "bbbbbbbbbb",
+    role: Role.VIEWER
+  },
+  {
+    username: "ras-03",
+    password: "cccccccccc",
+    role: Role.VIEWER
+  },
+  {
+    username: "ras-04",
+    password: "dddddddddd",
+    role: Role.VIEWER
+  },
+  {
+    username: "ras-05",
+    password: "eeeeeeeeee",
+    role: Role.VIEWER
+  },
+  {
+    username: "ras-06",
+    password: "ffffffffff",
+    role: Role.VIEWER
   },
   {
     username: "class-1-1",
@@ -253,3 +277,5 @@ const Users = [
     group: "車航空技術研究部"
   },
 ];
+
+export default Users;
