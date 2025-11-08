@@ -13,6 +13,12 @@ const AdminMockDate = {
     name: "山田 太郎",
     role: "ADMIN",
   },
+  groups: [
+    {
+      id: "",
+      name: "",
+    },
+  ], //Adminはグループ所属をする予定ではないが、情報取得の都合上空リストをモックとしている
   contents: [
     {
       id: "41e5f050-2b6d-430e-a09e-a29a85950b2e",
@@ -160,6 +166,7 @@ const ExhibitorMockDate = {
   ],
 };
 
+<<<<<<< HEAD
 type ContentSummary = { id: string; title: string; status: string };
 
 type AdminData = {
@@ -187,8 +194,15 @@ const selectUser: UserData = ExhibitorMockDate as unknown as UserData;
 // ensure mock constants are referenced so they're not reported as unused by the linter
 void AdminMockDate;
 void ViewerMockDate;
+=======
+const selectUser = AdminMockDate;
+// const selectUser = ViewerMockDate;
+// const selectUser = ExhibitorMockDate
+>>>>>>> d52fb98b936cc7c2443d21323211220ec05ceb85
 
 const UserRole = selectUser.user.role as "ADMIN" | "VIEWER" | "EXHIBITOR";
+
+const viewerConfig = ViewerMockDate.config;
 
 const panelDescription = {
   ADMIN:
@@ -265,8 +279,26 @@ export default function Home() {
                 <h2 className="text-xl font-bold mb-2 border-b-2">
                   表示グループ一覧
                 </h2>
+<<<<<<< HEAD
                 {selectUser.config.groups.map(
                   (group: { id: string; name: string }) => (
+=======
+                {viewerConfig.groups.map((group) => (
+                  <div key={group.id} className="border-b border-gray-300 py-2">
+                    <h3 className="text-lg font-semibold">{group.name}</h3>
+                  </div>
+                ))}
+              </div>
+            )}
+            {/* Exhibitor ⇒ 所属グループとコンテンツの一覧 */}
+            {UserRole === "EXHIBITOR" && (
+              <div className="h-4/5 flex flex-col ">
+                <div className="bg-white p-4 h-1/2 overflow-auto">
+                  <h2 className="text-xl font-bold mb-2 border-b-2">
+                    所属グループ一覧
+                  </h2>
+                  {selectUser.groups.map((group) => (
+>>>>>>> d52fb98b936cc7c2443d21323211220ec05ceb85
                     <div
                       key={group.id}
                       className="border-b border-gray-300 py-2"
