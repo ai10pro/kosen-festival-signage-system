@@ -19,6 +19,7 @@ export default function AdminContentsAuthPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [savingId, setSavingId] = useState<string | null>(null);
+  const [isAdmin, setIsAdmin] = useState<boolean>(false);
 
   const fetchList = async () => {
     setLoading(true);
@@ -36,7 +37,22 @@ export default function AdminContentsAuthPage() {
   };
 
   useEffect(() => {
-    fetchList();
+    // load current user role then fetch list
+    const load = async () => {
+      try {
+        const r = await fetch("/api/auth", { credentials: "same-origin" });
+        if (r.ok) {
+          const json = await r.json().catch(() => null);
+          const role = json?.payload?.role;
+          setIsAdmin(role === "ADMIN");
+        }
+      } catch (err) {
+        console.debug(err);
+        setIsAdmin(false);
+      }
+      await fetchList();
+    };
+    load();
   }, []);
 
   const changeStatus = async (
@@ -123,29 +139,31 @@ export default function AdminContentsAuthPage() {
                 </div>
               </div>
 
-              <div className="flex items-center gap-2">
-                <button
-                  className="px-3 py-1 bg-green-600 text-white rounded text-sm"
-                  disabled={savingId === c.id}
-                  onClick={() => changeStatus(c.id, "APPROVED")}
-                >
-                  承認
-                </button>
-                <button
-                  className="px-3 py-1 bg-red-600 text-white rounded text-sm"
-                  disabled={savingId === c.id}
-                  onClick={() => changeStatus(c.id, "REJECTED")}
-                >
-                  却下
-                </button>
-                <button
-                  className="px-3 py-1 bg-gray-300 rounded text-sm"
-                  disabled={savingId === c.id}
-                  onClick={() => changeStatus(c.id, "PENDING")}
-                >
-                  保留
-                </button>
-              </div>
+              {isAdmin && (
+                <div className="flex items-center gap-2">
+                  <button
+                    className="px-3 py-1 bg-green-600 text-white rounded text-sm"
+                    disabled={savingId === c.id}
+                    onClick={() => changeStatus(c.id, "APPROVED")}
+                  >
+                    承認
+                  </button>
+                  <button
+                    className="px-3 py-1 bg-red-600 text-white rounded text-sm"
+                    disabled={savingId === c.id}
+                    onClick={() => changeStatus(c.id, "REJECTED")}
+                  >
+                    却下
+                  </button>
+                  <button
+                    className="px-3 py-1 bg-gray-300 rounded text-sm"
+                    disabled={savingId === c.id}
+                    onClick={() => changeStatus(c.id, "PENDING")}
+                  >
+                    保留
+                  </button>
+                </div>
+              )}
             </div>
           ))}
         </div>
