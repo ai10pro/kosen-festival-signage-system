@@ -12,6 +12,12 @@ const AdminMockDate = {
     name: "山田 太郎",
     role: "ADMIN",
   },
+  groups: [
+    {
+      id: "",
+      name: "",
+    },
+  ], //Adminはグループ所属をする予定ではないが、情報取得の都合上空リストをモックとしている
   contents: [
     {
       id: "41e5f050-2b6d-430e-a09e-a29a85950b2e",
@@ -159,9 +165,13 @@ const ExhibitorMockDate = {
   ],
 };
 
-const selectUser = ExhibitorMockDate;
+const selectUser = AdminMockDate;
+// const selectUser = ViewerMockDate;
+// const selectUser = ExhibitorMockDate
 
 const UserRole = selectUser.user.role as "ADMIN" | "VIEWER" | "EXHIBITOR";
+
+const viewerConfig = ViewerMockDate.config;
 
 const panelDescription = {
   ADMIN:
@@ -238,7 +248,7 @@ export default function Home() {
                 <h2 className="text-xl font-bold mb-2 border-b-2">
                   表示グループ一覧
                 </h2>
-                {selectUser.config.groups.map((group) => (
+                {viewerConfig.groups.map((group) => (
                   <div key={group.id} className="border-b border-gray-300 py-2">
                     <h3 className="text-lg font-semibold">{group.name}</h3>
                   </div>
