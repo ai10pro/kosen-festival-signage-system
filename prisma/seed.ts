@@ -66,7 +66,6 @@ const hashPassword: PasswordHasher["hashPassword"] = async (
 async function main() {
   console.log("--- Start seeding initialization ---");
 
-
   for (const user of Users) {
     // userにあるgroupプロパティを使って団体を作成または取得
     let groupId: string | null = null;
@@ -121,7 +120,6 @@ async function main() {
   }
 
   console.log("--- Seeding initialization finished ---");
-
 }
 main()
   .catch((e) => {

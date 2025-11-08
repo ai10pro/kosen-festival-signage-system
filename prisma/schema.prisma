@@ -75,6 +75,7 @@ model Group {
   contents  Content[] @relation("Group")
   userGroups UserGroup[]
   images    Image[]
+  signageContents SignageContent[]
 
   @@map("groups")
 }
@@ -114,7 +115,6 @@ model Content {
 
   images          Image[]       
   contentTags     ContentTag[]
-  signageContents SignageContent[]
 
   @@map("contents")
 }
@@ -209,15 +209,17 @@ model SignageTag {
 
 // SignageContent: サイネージに表示するコンテンツとその順序を管理する中間テーブル
 model SignageContent {
+  // Signage ごとに管理する対象をコンテンツIDからグループIDへ移行
+  // これによりサイネージはコンテンツ単位ではなく団体(Group)単位で紐づけられます
   signageId String
-  contentId String
-  
-  order     Int // コンテンツのサイネージ上での表示順序
-  
+  groupId   String
+
+  order     Int // グループ単位での表示順序
+
   signage   Signage @relation(fields: [signageId], references: [id], onDelete: Cascade)
-  content   Content @relation(fields: [contentId], references: [id], onDelete: Cascade)
-  
-  @@id([signageId, contentId])
+  group     Group   @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@id([signageId, groupId])
   @@map("signage_contents")
 }
 
