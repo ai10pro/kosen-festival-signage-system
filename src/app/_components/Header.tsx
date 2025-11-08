@@ -19,31 +19,34 @@ export const Header: React.FC = () => {
       {
         id: "ADMIN",
         label: [
-          "コンテンツダッシュボード",
-          "認証",
-          "タグ・グループ一覧",
-          "表示コンテンツ設定",
+          { name: "コンテンツダッシュボード", href: "/content" },
+          { name: "認証", href: "/content/auth" },
+          { name: "タグ・グループ一覧", href: "/tag" },
+          { name: "表示コンテンツ設定", href: "/signages" },
         ],
       },
       {
         id: "VIEWER",
         label: [
-          "コンテンツダッシュボード",
-          "認証",
-          "表示コンテンツ設定",
-          "タグ一覧",
-          "所属グループ一覧",
+          { name: "コンテンツダッシュボード", href: "/content" },
+          { name: "認証", href: "/content/auth" },
+          { name: "表示コンテンツ設定", href: "/settings" },
+          { name: "タグ一覧", href: "/tag" },
+          { name: "所属グループ一覧", href: "/groups" },
         ],
       },
       {
         id: "EXHIBITOR",
-        label: ["コンテンツダッシュボード", "認証"],
+        label: [
+          { name: "コンテンツダッシュボード", href: "/content" },
+          { name: "認証", href: "/auth" },
+        ],
       },
     ],
   };
 
   return (
-    <header className="w-1/4 h-screen border-r border-gray-200 dark:border-gray-700 bg-gray-100  dark:bg-neutral-900">
+    <header className="w-1/4 h-screen border-r fixed top-0 left-0 border-gray-200 dark:border-gray-700 bg-gray-100  dark:bg-neutral-900">
       <div className="py-2 flex flex-col h-full">
         <div className="flex-1 overflow-y-auto">
           <ThemeToggle />
@@ -69,10 +72,12 @@ export const Header: React.FC = () => {
               {userProfile &&
                 contentsData.navItems
                   .find((item) => item.id === userProfile.role)
-                  ?.label.map((label) => (
-                    <div key={label} className="flex py-1">
-                      {label}
-                    </div>
+                  ?.label.map((item) => (
+                    <NextLink href={item.href} key={item.name}>
+                      <div className="flex py-1 px-2 cursor-pointer hover:bg-gray-300 dark:hover:bg-neutral-600 rounded">
+                        {item.name}
+                      </div>
+                    </NextLink>
                   ))}
             </div>
           )}

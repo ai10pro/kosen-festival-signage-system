@@ -18,7 +18,7 @@ export default function RootLayout({
 
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className="bg-white dark:bg-[#191919] text-[#37352f] dark:text-[#ffffffcf] flex">
+      <body className="bg-white dark:bg-[#191919] text-[#37352f] dark:text-[#ffffffcf]">
         <AuthProvider>
           <ThemeProvider
             attribute="class"
@@ -27,7 +27,9 @@ export default function RootLayout({
             disableTransitionOnChange
           >
             {showHeader && <Header />}
-            <div className={showHeader ? "w-3/4" : "w-full"}>{children}</div>
+            <div className={showHeader ? "w-3/4 ml-auto" : "w-full"}>
+              {children}
+            </div>
           </ThemeProvider>
         </AuthProvider>
       </body>
