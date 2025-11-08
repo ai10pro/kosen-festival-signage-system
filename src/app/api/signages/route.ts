@@ -44,37 +44,42 @@ export const GET = async (req: NextRequest) => {
       orderBy: [{ locationName: "asc" }],
     });
 
-    // 各 group に紐づく Image の contentId をまとめる
+    // 各 group に紐づく Content の id をまとめる（Content.groupId を基準に集約）
     const allGroupIds = (
       signages.flatMap((s: any) =>
         (s.contentSettings || []).map((cs: any) => cs.group?.id).filter(Boolean)
       ) as string[]
     ).filter((v, i, a) => a.indexOf(v) === i);
 
-    let imagesByGroup: Record<string, string[]> = {};
+    // Content を一度だけ取得して groupId ごとに contentId を集約する
+    let contentsByGroup: Record<string, string[]> = {};
     if (allGroupIds.length > 0) {
-      const imgs = await (prisma.image as any).findMany({
+      const contents = await (prisma.content as any).findMany({
         where: { groupId: { in: allGroupIds } },
-        select: { contentId: true, groupId: true },
+        select: { id: true, groupId: true },
+        orderBy: [{ createdAt: "desc" }],
       });
 
-      imagesByGroup = imgs.reduce((acc: Record<string, string[]>, it: any) => {
-        const gid = it.groupId;
-        if (!acc[gid]) acc[gid] = [];
-        if (it.contentId && !acc[gid].includes(it.contentId)) {
-          acc[gid].push(it.contentId);
-        }
-        return acc;
-      }, {});
+      contentsByGroup = contents.reduce(
+        (acc: Record<string, string[]>, it: any) => {
+          const gid = it.groupId;
+          if (!acc[gid]) acc[gid] = [];
+          if (it.id && !acc[gid].includes(it.id)) {
+            acc[gid].push(it.id);
+          }
+          return acc;
+        },
+        {}
+      );
     }
 
-    // signages を変換して、group 毎に imageContentIds を追加する
+    // signages を変換して、group 毎に contentId の配列を imageContentIds として追加する（互換性維持）
     const signagesWithImageContentIds = (signages as any).map((s: any) => ({
       ...s,
       contentSettings: (s.contentSettings || []).map((cs: any) => ({
         ...cs,
         group: cs.group || null,
-        imageContentIds: imagesByGroup[cs.group?.id ?? ""] || [],
+        imageContentIds: contentsByGroup[cs.group?.id ?? ""] || [],
       })),
     }));
 
