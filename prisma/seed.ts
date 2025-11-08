@@ -7,7 +7,7 @@ import {
 } from "@prisma/client";
 import * as bcrypt from "bcryptjs";
 
-import Users from "./users"
+import Users from "./Users"
 
 const signages = [
   {
