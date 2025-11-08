@@ -44,9 +44,43 @@ export const GET = async (req: NextRequest) => {
       orderBy: [{ locationName: "asc" }],
     });
 
-    const res: ApiResponse<typeof signages> = {
+    // 各 group に紐づく Image の contentId をまとめる
+    const allGroupIds = (
+      signages.flatMap((s: any) =>
+        (s.contentSettings || []).map((cs: any) => cs.group?.id).filter(Boolean)
+      ) as string[]
+    ).filter((v, i, a) => a.indexOf(v) === i);
+
+    let imagesByGroup: Record<string, string[]> = {};
+    if (allGroupIds.length > 0) {
+      const imgs = await (prisma.image as any).findMany({
+        where: { groupId: { in: allGroupIds } },
+        select: { contentId: true, groupId: true },
+      });
+
+      imagesByGroup = imgs.reduce((acc: Record<string, string[]>, it: any) => {
+        const gid = it.groupId;
+        if (!acc[gid]) acc[gid] = [];
+        if (it.contentId && !acc[gid].includes(it.contentId)) {
+          acc[gid].push(it.contentId);
+        }
+        return acc;
+      }, {});
+    }
+
+    // signages を変換して、group 毎に imageContentIds を追加する
+    const signagesWithImageContentIds = (signages as any).map((s: any) => ({
+      ...s,
+      contentSettings: (s.contentSettings || []).map((cs: any) => ({
+        ...cs,
+        group: cs.group || null,
+        imageContentIds: imagesByGroup[cs.group?.id ?? ""] || [],
+      })),
+    }));
+
+    const res: ApiResponse<any> = {
       success: true,
-      payload: signages,
+      payload: signagesWithImageContentIds,
       message: "サイネージ一覧を取得しました",
     };
 
