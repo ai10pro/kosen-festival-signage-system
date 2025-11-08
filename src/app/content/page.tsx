@@ -9,6 +9,8 @@ type ContentSummary = {
   description?: string;
   createdAt: string;
   updatedAt?: string;
+  status?: string;
+  rejectionReason?: string | null;
   group?: { id: string; name: string } | null;
   uploader?: { id: string; username?: string } | null;
   images?: { storageUrl?: string }[];
@@ -138,6 +140,7 @@ const ContentListPage: React.FC = () => {
                         作成者: {c.uploader.username}
                       </span>
                     )}
+                    {/* status badge moved down to its own row for clearer layout */}
                   </div>
                   <div className="flex items-center gap-2">
                     <button
@@ -165,6 +168,20 @@ const ContentListPage: React.FC = () => {
                         {ct.tag.name}
                       </span>
                     ))}
+                  </div>
+                )}
+                {c.status && (
+                  <div className="mt-3">
+                    <span
+                      className={`text-xs px-2 py-0.5 rounded ${c.status === "APPROVED" ? "bg-green-100 text-green-700" : c.status === "REJECTED" ? "bg-red-100 text-red-700" : "bg-yellow-100 text-yellow-700"}`}
+                    >
+                      {c.status}
+                    </span>
+                  </div>
+                )}
+                {c.rejectionReason && (
+                  <div className="mt-2 text-sm text-red-600">
+                    却下理由: {c.rejectionReason}
                   </div>
                 )}
               </div>
