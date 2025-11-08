@@ -1,6 +1,6 @@
 "use client";
 import Image from "next/image";
-import Timer from "@/app/_components/Timer";
+import Timer from "@/app/_components/Clock";
 import { useState, useEffect } from "react";
 import type { ContentResponse } from "@/app/_types/ContentRequest";
 import { Swiper, SwiperSlide } from "swiper/react";

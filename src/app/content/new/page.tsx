@@ -44,7 +44,35 @@ export default function ContentCreatePage() {
   }, []);
 
   const addImage = () => setImages((s) => [...s, { url: "" }]);
-  const removeImage = (i: number) => {
+  const removeImage = async (i: number) => {
+    const target = images[i];
+    // 削除対象がSupabaseにアップロード済みならサーバー経由で削除を試みる
+    if (target?.storageKey) {
+      try {
+        const res = await fetch("/api/supabase/delete-temp-files", {
+          method: "POST",
+          credentials: "same-origin",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            bucket: bucketName,
+            paths: [target.storageKey],
+          }),
+        });
+        if (!res.ok) {
+          const text = await res.text().catch(() => "");
+          console.warn("delete-temp-files returned error:", res.status, text);
+          window.alert(
+            "一時ファイルの削除に失敗しました。後で管理者に確認してください。"
+          );
+        }
+      } catch (e) {
+        console.debug("failed to delete storage key:", target.storageKey, e);
+        window.alert(
+          "一時ファイルの削除中にエラーが発生しました。後で管理者に確認してください。"
+        );
+      }
+    }
+
     setImages((s) => s.filter((_, idx) => idx !== i));
     setSelectedImageIndex((sel) =>
       sel === null ? null : sel === i ? null : sel > i ? sel - 1 : sel
@@ -59,12 +87,38 @@ export default function ContentCreatePage() {
     if (!e.target.files || e.target.files.length === 0) return;
     const file = e.target.files[0];
     if (!file) return;
+    // 既にこのスロットにアップロード済みのファイルがあれば削除する
+    const existing = images[i];
+    if (existing?.storageKey) {
+      try {
+        const res = await fetch("/api/supabase/delete-temp-files", {
+          method: "POST",
+          credentials: "same-origin",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            bucket: bucketName,
+            paths: [existing.storageKey],
+          }),
+        });
+        if (!res.ok) {
+          const text = await res.text().catch(() => "");
+          console.warn(
+            "delete-temp-files returned error on replace:",
+            res.status,
+            text
+          );
+        }
+      } catch (err) {
+        console.debug("failed to delete previous upload", err);
+      }
+    }
     // 拡張子を取得
     const ext = file.name.includes(".")
       ? file.name.substring(file.name.lastIndexOf("."))
       : "";
     const hashed = generateMD5Hash(file.name + "-" + Date.now());
-    const path = `public/exhibition/${hashed}${ext}`;
+    // 一時プレフィックスにアップロード
+    const path = `public/temp/${hashed}${ext}`;
 
     const { data, error } = await supabase.storage
       .from(bucketName)
@@ -111,7 +165,11 @@ export default function ContentCreatePage() {
     setSaving(true);
     setError(null);
     try {
-      const payloadImages = images.map((it, i) => ({ url: it.url, order: i }));
+      const payloadImages = images.map((it, i) => ({
+        url: it.url,
+        order: i,
+        storageKey: it.storageKey,
+      }));
       const body = {
         title,
         description,
@@ -238,14 +296,20 @@ export default function ContentCreatePage() {
                 {idx + 1}
               </div>
               <div className="flex-1">
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => {
-                    e.stopPropagation();
-                    handleFileChange(idx, e);
-                  }}
-                />
+                {!img.url ? (
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => {
+                      e.stopPropagation();
+                      handleFileChange(idx, e);
+                    }}
+                  />
+                ) : (
+                  <div className="text-sm text-gray-500">
+                    画像はアップロード済みのため変更できません（削除して再追加してください）
+                  </div>
+                )}
                 {img.url && (
                   <div className="mt-2">
                     <img
@@ -291,7 +355,39 @@ export default function ContentCreatePage() {
           <button
             type="button"
             className="px-4 py-2 bg-gray-300 rounded"
-            onClick={() => router.push("/content")}
+            onClick={async () => {
+              if (saving) return;
+              // 未保存のアップロードがあれば削除
+              const keys = images
+                .map((it) => it.storageKey)
+                .filter(Boolean) as string[];
+              if (keys.length > 0) {
+                try {
+                  const res = await fetch("/api/supabase/delete-temp-files", {
+                    method: "POST",
+                    credentials: "same-origin",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ bucket: bucketName, paths: keys }),
+                  });
+                  if (!res.ok) {
+                    const text = await res.text().catch(() => "");
+                    console.warn("cleanup on cancel failed:", res.status, text);
+                    window.alert(
+                      "キャンセル時の一時ファイル削除に失敗しました。後で管理者に確認してください。"
+                    );
+                  }
+                } catch (e) {
+                  console.debug(
+                    "failed to cleanup uploaded files on cancel",
+                    e
+                  );
+                  window.alert(
+                    "キャンセル時の一時ファイル削除中にエラーが発生しました。後で管理者に確認してください。"
+                  );
+                }
+              }
+              router.push("/content");
+            }}
             disabled={saving}
           >
             キャンセル

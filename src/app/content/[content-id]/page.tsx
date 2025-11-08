@@ -133,11 +133,76 @@ export default function ContentEditPage() {
     if (!e.target.files || e.target.files.length === 0) return;
     const file = e.target.files[0];
     if (!file) return;
+    // 既にこのスロットにアップロード済みのファイルがあれば削除する
+    const existing = images[idx];
+    // storageKey があれば確実に削除
+    if (existing?.storageKey) {
+      try {
+        const res = await fetch("/api/supabase/delete-temp-files", {
+          method: "POST",
+          credentials: "same-origin",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            bucket: bucketName,
+            paths: [existing.storageKey],
+          }),
+        });
+        if (!res.ok) {
+          const text = await res.text().catch(() => "");
+          console.warn(
+            "delete-temp-files returned error on replace:",
+            res.status,
+            text
+          );
+        }
+      } catch (err) {
+        console.debug("failed to delete previous upload", err);
+      }
+    } else if (existing?.url) {
+      // 既存の保存済み画像の public URL からパスを推定して削除を試みる（可能な場合のみ）
+      try {
+        const marker = "/storage/v1/object/public/";
+        const idxMarker = existing.url.indexOf(marker);
+        if (idxMarker !== -1) {
+          const after = existing.url.substring(idxMarker + marker.length); // bucket/relative/path
+          const parts = after.split("/");
+          // parts[0] が bucket 名のはず
+          if (parts.length >= 2 && parts[0] === bucketName) {
+            const relPath = parts.slice(1).join("/");
+            // Supabase の remove にはバケット内のパス（例: public/exhibition/xxx）を渡す
+            try {
+              const res = await fetch("/api/supabase/delete-temp-files", {
+                method: "POST",
+                credentials: "same-origin",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ bucket: bucketName, paths: [relPath] }),
+              });
+              if (!res.ok) {
+                const text = await res.text().catch(() => "");
+                console.warn(
+                  "delete-temp-files returned error on inferred path:",
+                  res.status,
+                  text
+                );
+              }
+            } catch (err) {
+              console.debug(
+                "failed to infer and delete previous public url",
+                err
+              );
+            }
+          }
+        }
+      } catch (err) {
+        console.debug("failed to infer and delete previous public url", err);
+      }
+    }
     const ext = file.name.includes(".")
       ? file.name.substring(file.name.lastIndexOf("."))
       : "";
     const hashed = generateMD5Hash(file.name + "-" + Date.now());
-    const path = `public/exhibition/${hashed}${ext}`;
+    // 一時プレフィックスにアップロード
+    const path = `public/temp/${hashed}${ext}`;
     const { data, error } = await supabase.storage
       .from(bucketName)
       .upload(path, file, { upsert: true });
@@ -154,7 +219,6 @@ export default function ContentEditPage() {
     const publicUrl = publicUrlResult.data.publicUrl;
 
     // 既存画像（DBにレコードがある）なら PATCH、それ以外は POST して新規作成
-    const existing = images[idx];
     if (existing && existing.id) {
       // PATCH
       try {
@@ -162,7 +226,11 @@ export default function ContentEditPage() {
           method: "PATCH",
           credentials: "same-origin",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ storageUrl: publicUrl, order: idx }),
+          body: JSON.stringify({
+            storageUrl: publicUrl,
+            storageKey: data.path,
+            order: idx,
+          }),
         });
         if (!res.ok) throw new Error(`画像更新に失敗しました (${res.status})`);
         // 更新に成功したら state 更新
@@ -177,7 +245,12 @@ export default function ContentEditPage() {
     } else {
       // POST 新規画像登録
       try {
-        const payload = { storageUrl: publicUrl, contentId: id, order: idx };
+        const payload = {
+          storageUrl: publicUrl,
+          storageKey: data.path,
+          contentId: id,
+          order: idx,
+        };
         const res = await fetch(`/api/images`, {
           method: "POST",
           credentials: "same-origin",
@@ -327,14 +400,20 @@ export default function ContentEditPage() {
                 {idx + 1}
               </div>
               <div className="flex-1">
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => {
-                    e.stopPropagation();
-                    handleFileChange(idx, e);
-                  }}
-                />
+                {!img.url ? (
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => {
+                      e.stopPropagation();
+                      handleFileChange(idx, e);
+                    }}
+                  />
+                ) : (
+                  <div className="text-sm text-gray-500">
+                    画像はアップロード済みのため変更できません（削除して再追加してください）
+                  </div>
+                )}
                 {img.url && (
                   <div className="mt-2">
                     <img

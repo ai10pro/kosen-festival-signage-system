@@ -9,7 +9,15 @@ import {
   ImageResponseSchema,
 } from "@/app/_types/ImageRequest";
 import { generateMD5Hash } from "@/app/_helper/generateHash";
+import { createClient } from "@supabase/supabase-js";
 import { ApiResponse } from "@/app/_types/ApiResponse";
+
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const supabaseAdmin = createClient(
+  SUPABASE_URL ?? "",
+  SUPABASE_SERVICE_ROLE_KEY ?? ""
+);
 
 export const config = {
   dynamic: "force-dynamic",
@@ -36,41 +44,47 @@ export const GET = async (req: NextRequest) => {
       return NextResponse.json(res, { status: 401 });
     }
 
-    // ユーザーが所属するグループID一覧を取得
+    // ユーザー情報と所属グループID一覧を取得
     const user = await prisma.user.findUnique({
       where: { id: userId },
       include: { userGroups: true },
     });
     const groupIds = (user?.userGroups || []).map((ug) => ug.groupId);
+    const isAdmin = user?.role === "ADMIN";
 
     // クエリパラメータから groupId を取得（任意）
     const url = new URL(req.url);
     const requestedGroupId = url.searchParams.get("groupId");
 
-    // グループが無い場合は空配列を返す
-    if (!requestedGroupId && groupIds.length === 0) {
-      return NextResponse.json<ApiResponse<ImageResponse[]>>(
-        { success: true, payload: [], message: "" },
-        { status: 200 }
-      );
-    }
+    // ADMIN ユーザーは全件取得（どの groupId にもアクセス可能）
+    if (!isAdmin) {
+      // グループが無い場合は空配列を返す
+      if (!requestedGroupId && groupIds.length === 0) {
+        return NextResponse.json<ApiResponse<ImageResponse[]>>(
+          { success: true, payload: [], message: "" },
+          { status: 200 }
+        );
+      }
 
-    // 指定された groupId がある場合は、そのグループに所属しているか確認
-    if (requestedGroupId) {
-      if (!groupIds.includes(requestedGroupId)) {
-        const res: ApiResponse<null> = {
-          success: false,
-          payload: null,
-          message: "指定されたグループの画像にアクセスする権限がありません。",
-        };
-        return NextResponse.json(res, { status: 403 });
+      // 指定された groupId がある場合は、そのグループに所属しているか確認
+      if (requestedGroupId) {
+        if (!groupIds.includes(requestedGroupId)) {
+          const res: ApiResponse<null> = {
+            success: false,
+            payload: null,
+            message: "指定されたグループの画像にアクセスする権限がありません。",
+          };
+          return NextResponse.json(res, { status: 403 });
+        }
       }
     }
 
-    // 画像取得：groupId が指定されていればそのグループ分のみ、未指定ならユーザー所属グループの画像を取得
-    const whereClause = requestedGroupId
-      ? { groupId: requestedGroupId }
-      : { groupId: { in: groupIds } };
+    // 画像取得：ADMIN ならフィルタ無しで全件、そうでなければ groupId 指定または所属グループ分を取得
+    const whereClause = isAdmin
+      ? {}
+      : requestedGroupId
+        ? { groupId: requestedGroupId }
+        : { groupId: { in: groupIds } };
 
     const images = await prisma.image.findMany({
       where: whereClause,
@@ -108,6 +122,16 @@ export const GET = async (req: NextRequest) => {
  */
 export const POST = async (req: NextRequest) => {
   try {
+    // セッション検証：ログインユーザーのIDを取得
+    const userId = await verifySession();
+    if (!userId) {
+      const res: ApiResponse<null> = {
+        success: false,
+        payload: null,
+        message: "ログインしてください",
+      };
+      return NextResponse.json(res, { status: 401 });
+    }
     const json: CreateImageRequest = await req.json();
 
     // リクエストボディのバリデーション
@@ -125,7 +149,8 @@ export const POST = async (req: NextRequest) => {
       );
     }
 
-    const { storageUrl, contentId, groupId, order } = validation.data;
+    const data = validation.data as CreateImageRequest;
+    const { storageUrl, storageKey, contentId, groupId, order } = data;
     const fileHash = generateMD5Hash(storageUrl);
     const existingImage = await prisma.image.findFirst({
       where: { fileHash },
@@ -157,12 +182,54 @@ export const POST = async (req: NextRequest) => {
       );
     }
 
-    // Prisma client types may be outdated until `prisma generate` runs locally.
-    // Suppress TS error here; runtime DB will accept `order` column once migration is applied.
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const newImage = await (prisma as any).image.create({
+    // storageKey があり、かつ一時プレフィックスなら永久領域へ移動して publicUrl を更新
+    let finalStorageUrl = storageUrl;
+    try {
+      if (storageKey && storageKey.startsWith("public/temp/")) {
+        // コンテンツ・グループ・アップローダ情報を取得してパスを構築
+        const contentWithMeta = await prisma.content.findUnique({
+          where: { id: contentId },
+          include: { group: true, uploader: true },
+        });
+
+        const groupName = contentWithMeta?.group?.name ?? "group";
+        const contentName = contentWithMeta?.title ?? "content";
+        const userName = contentWithMeta?.uploader?.username ?? "user";
+
+        const slug = (s: string) =>
+          s
+            .toString()
+            .trim()
+            .toLowerCase()
+            .replace(/[^a-z0-9\\-_.]/g, "_")
+            .replace(/_+/g, "_")
+            .slice(0, 120);
+
+        const hashed = generateMD5Hash(storageKey + Date.now().toString());
+        const ext = storageKey.includes(".")
+          ? storageKey.substring(storageKey.lastIndexOf("."))
+          : "";
+        const destPath = `public/${slug(groupName)}/${slug(contentName)}/${slug(userName)}/${hashed}${ext}`;
+
+        const moveRes = await supabaseAdmin.storage
+          .from("content_image")
+          .move(storageKey, destPath);
+        if (moveRes.error) {
+          console.debug("failed to move file", moveRes.error);
+        } else {
+          const publicUrlResult = await supabaseAdmin.storage
+            .from("content_image")
+            .getPublicUrl(destPath);
+          finalStorageUrl = publicUrlResult.data?.publicUrl ?? finalStorageUrl;
+        }
+      }
+    } catch (err) {
+      console.debug("error moving storage file:", err);
+    }
+
+    const newImage = await prisma.image.create({
       data: {
-        storageUrl,
+        storageUrl: finalStorageUrl,
         fileHash,
         contentId,
         groupId: groupId ?? null,
