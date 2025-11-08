@@ -8,12 +8,13 @@ import "swiper/css";
 import { Autoplay } from "swiper/modules";
 
 const Signage: React.FC = () => {
-  const [now] = useState(new Date());
+  const [now, setNow] = useState<Date | null>(null);
   const [contents, setContents] = useState<ContentResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    setNow(new Date());
     const fetchContents = async () => {
       try {
         const res = await fetch("/api/contents", {
@@ -40,6 +41,8 @@ const Signage: React.FC = () => {
   }, []);
 
   const getBorderColorClass = (schedule: string): string => {
+    if (!now) return "border-sky-400"; // nowがnullの場合はデフォルト
+
     const match = schedule.match(/(\d{1,2}):(\d{2})/);
     if (!match) return "border-sky-400"; // 時刻がなければデフォルトの水色
 
@@ -53,7 +56,7 @@ const Signage: React.FC = () => {
     return "border-sky-400";
   };
 
-  if (loading) {
+  if (loading || !now) {
     return (
       <div className="h-screen flex items-center justify-center">
         読み込み中...

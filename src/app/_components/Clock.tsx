@@ -2,9 +2,10 @@
 import { useState, useEffect } from "react";
 
 const Clock: React.FC = () => {
-  const [now, setNow] = useState(new Date());
+  const [now, setNow] = useState<Date | null>(null);
 
   useEffect(() => {
+    setNow(new Date()); // マウント後に現在時刻を設定
     const clock = setInterval(() => {
       setNow(new Date());
     }, 1000); // 1秒ごとに現在時刻を更新
@@ -28,6 +29,8 @@ const Clock: React.FC = () => {
     const weekday = weekdays[date.getDay()]; // 曜日を取得
     return `${year}年${month}月${day}日（${weekday}）`;
   };
+
+  if (!now) return null; // 初期レンダリングでは何も表示しない
 
   return (
     <div className="p-2 m-auto">
