@@ -38,6 +38,14 @@ async function main() {
     isPasswordSet: false,
   };
 
+  const signageData = {
+    username: "ENTRANCE-001",
+    passwordHash: initialHash,
+    initialPasswordHash: initialHash,
+    role: Role.VIEWER,
+    isPasswordSet: false,
+  };
+
   const adminUser = await prisma.user.upsert({
     where: { username: "admin" },
     update: adminData,
@@ -49,8 +57,14 @@ async function main() {
     create: exhibitorData,
   });
 
+  const signageUser = await prisma.user.upsert({
+    where: { username: "ENTRANCE-001" },
+    update: signageData,
+    create: signageData,
+  });
+
   console.log(
-    `Created users: ${adminUser.username} (${adminUser.role}), ${exhibitorUser.username} (${exhibitorUser.role})`
+    `Created users: ${adminUser.username} (${adminUser.role}), ${exhibitorUser.username} (${exhibitorUser.role}), ${signageUser.username} (${signageUser.role})`
   );
 
   // ----------------------------------------------------
@@ -171,8 +185,6 @@ async function main() {
   // ----------------------------------------------------
   // 10. サイネージへのコンテンツ表示順設定 (SignageContent)
   // ----------------------------------------------------
-  // SignageContent スキーマを contentId -> groupId に変更したため、
-  // seed も group 単位での割当に更新します。
   await prisma.signageContent.upsert({
     where: {
       signageId_groupId: {
