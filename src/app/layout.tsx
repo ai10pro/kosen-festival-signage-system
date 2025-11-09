@@ -13,13 +13,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   const pathname = usePathname();
-  const noHeaderPaths = [
-    "/login",
-    "/login/set-password",
-    "/signage/view",
-    "/signage/view_test",
-    "/signage/view_test2",
-  ];
+  const noHeaderPaths = ["/login", "/login/set-password", "/signage/view"];
   const showHeader = !noHeaderPaths.includes(pathname);
 
   return (

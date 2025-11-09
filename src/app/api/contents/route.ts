@@ -11,7 +11,6 @@ import { ContentStatus as PrismaContentStatus, Prisma } from "@prisma/client";
 import { getGroupIdFromUser } from "@/app/_helper/getGroup";
 import { generateMD5Hash } from "@/app/_helper/generateHash";
 import { createClient } from "@supabase/supabase-js";
-import { is } from "zod/locales";
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -59,8 +58,7 @@ export const GET = async (req: NextRequest) => {
       where: { id: userId },
       select: { role: true },
     });
-    // OBSERVER は管理者と同等に全データ参照を許可する運用に変更
-    const isAdmin = user?.role === "ADMIN" || user?.role === "OBSERVER";
+    const isAdmin = user?.role === "ADMIN";
 
     // クエリパラメータから groupId が指定されているか確認
     const groupIdFromQuery = req.nextUrl.searchParams.get("groupId");

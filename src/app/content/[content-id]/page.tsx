@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useEffect, useState, ChangeEvent } from "react";
-import { useAuth } from "@/app/_hooks/useAuth";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
 import Spinner from "@/components/Spinner";
@@ -31,35 +30,25 @@ export default function ContentEditPage() {
     null
   );
   const [dropdownOpen, setDropdownOpen] = useState(false);
-  const auth = useAuth();
 
   useEffect(() => {
     if (!id) return;
     setLoading(true);
     setError(null);
 
-    const load = async () => {
-      try {
-        const groupsEndpoint =
-          auth?.userProfile?.role === "ADMIN"
-            ? "/api/groups"
-            : "/api/user/groups";
-
-        const [contentResp, groupsResp] = await Promise.all([
-          fetch(`/api/contents/${id}`, { credentials: "same-origin" }),
-          fetch(groupsEndpoint, { credentials: "same-origin" }),
-        ]);
-
-        if (!contentResp.ok)
-          throw new Error(
-            `コンテンツ取得に失敗しました (${contentResp.status})`
-          );
-        if (!groupsResp.ok)
-          throw new Error(`グループ取得に失敗しました (${groupsResp.status})`);
-
-        const contentData = await contentResp.json();
-        const groupsData = await groupsResp.json();
-
+    Promise.all([
+      fetch(`/api/contents/${id}`, { credentials: "same-origin" }).then((r) => {
+        if (!r.ok)
+          throw new Error(`コンテンツ取得に失敗しました (${r.status})`);
+        return r.json();
+      }),
+      fetch(`/api/user/groups`, { credentials: "same-origin" }).then((r) => {
+        if (!r.ok) throw new Error(`グループ取得に失敗しました (${r.status})`);
+        return r.json();
+      }),
+    ])
+      .then(([contentData, groupsResp]) => {
+        console.debug("/api/user/groups response:", groupsResp);
         setTitle(contentData.title ?? "");
         setDescription(contentData.description ?? "");
         setGroupId(contentData.group?.id ?? contentData.groupId ?? "");
@@ -77,16 +66,11 @@ export default function ContentEditPage() {
             .map((ct: { tag?: { id?: string } }) => ct.tag?.id)
             .filter(Boolean) as string[]
         );
-        setGroups(groupsData.payload ?? []);
-      } catch (e) {
-        setError(String(e));
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    load();
-  }, [id, auth?.userProfile?.role]);
+        setGroups(groupsResp.payload ?? []);
+      })
+      .catch((e) => setError(String(e)))
+      .finally(() => setLoading(false));
+  }, [id]);
 
   useEffect(() => {
     fetch("/api/tags", { credentials: "same-origin" })
