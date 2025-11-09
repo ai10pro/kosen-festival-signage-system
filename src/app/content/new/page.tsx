@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState, ChangeEvent } from "react";
+import { useAuth } from "@/app/_hooks/useAuth";
 import { useRouter } from "next/navigation";
 import Spinner from "@/components/Spinner";
 import { supabase } from "@/utils/supabase";
@@ -11,6 +12,7 @@ type ImageInput = { url: string; storageKey?: string };
 
 export default function ContentCreatePage() {
   const router = useRouter();
+  const auth = useAuth();
 
   const [groups, setGroups] = useState<Group[]>([]);
   const [loading, setLoading] = useState(true);
@@ -29,21 +31,29 @@ export default function ContentCreatePage() {
   const [dropdownOpen, setDropdownOpen] = useState(false);
 
   useEffect(() => {
-    setLoading(true);
-    fetch("/api/user/groups", { credentials: "same-origin" })
-      .then((r) => {
+    const load = async () => {
+      setLoading(true);
+      try {
+        const endpoint =
+          auth?.userProfile?.role === "ADMIN"
+            ? "/api/groups"
+            : "/api/user/groups";
+        const r = await fetch(endpoint, { credentials: "same-origin" });
         if (!r.ok) throw new Error(`グループ取得に失敗しました (${r.status})`);
-        return r.json();
-      })
-      .then((data) => {
-        console.debug("/api/user/groups response:", data);
+        const data = await r.json();
+        console.debug(`${endpoint} response:`, data);
         setGroups(data.payload ?? []);
         if ((data.payload ?? []).length === 1)
           setGroupId((data.payload ?? [])[0].id);
-      })
-      .catch((e) => setError(String(e)))
-      .finally(() => setLoading(false));
-  }, []);
+      } catch (e) {
+        setError(String(e));
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    load();
+  }, [auth?.userProfile?.role]);
 
   useEffect(() => {
     // load tags for selection
