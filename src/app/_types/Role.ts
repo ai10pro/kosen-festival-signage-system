@@ -2,6 +2,7 @@ export const Role = {
   ADMIN: "ADMIN", // 管理者
   PASSWORD_RESETTER: "PASSWORD_RESETTER", // パスワードリセット専用アカウント
   EXHIBITOR: "EXHIBITOR", // 展示団体担当者
+  OBSERVER: "OBSERVER", // 検閲者 / オブザーバー
   VIEWER: "VIEWER", // 閲覧者
 };
 

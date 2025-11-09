@@ -125,22 +125,53 @@ const SignageViewTest: React.FC = () => {
               .toString()
               .toUpperCase();
 
-            if (imageRec && (imageRec.content_id || imageRec.contentId)) {
-              const contentId = (imageRec.content_id ??
-                imageRec.contentId) as string;
+            // normalize snake_case -> camelCase to keep client-side model consistent
+            const normalizeImage = (r?: ImageRecord) => {
+              if (!r) return undefined;
+              const asRec = r as unknown as {
+                storage_url?: string;
+                storageUrl?: string;
+                content_id?: string;
+                contentId?: string;
+                id?: string;
+                order?: number;
+              };
+              const normalized: ImageRecord = {
+                id: asRec.id,
+                order: asRec.order,
+                content_id: asRec.content_id ?? asRec.contentId,
+                contentId: (asRec.contentId ?? asRec.content_id) as
+                  | string
+                  | undefined,
+                storageUrl: asRec.storageUrl ?? asRec.storage_url,
+                storage_url: asRec.storage_url ?? asRec.storageUrl,
+              };
+              return normalized;
+            };
+
+            const normalizedRec = normalizeImage(imageRec);
+
+            if (
+              normalizedRec &&
+              (normalizedRec.content_id || normalizedRec.contentId)
+            ) {
+              const contentId = (normalizedRec.content_id ??
+                normalizedRec.contentId) as string;
               setData((prev) => {
                 return prev.map((c) => {
                   if (c.id !== contentId) return c;
                   const imgs = Array.isArray(c.images) ? [...c.images] : [];
                   if (imageEv === "INSERT") {
-                    return { ...c, images: [imageRec, ...imgs] };
+                    return { ...c, images: [normalizedRec, ...imgs] };
                   }
                   if (imageEv === "UPDATE") {
-                    const idx = imgs.findIndex((im) => im.id === imageRec.id);
+                    const idx = imgs.findIndex(
+                      (im) => im.id === normalizedRec.id
+                    );
                     if (idx !== -1) {
-                      imgs[idx] = { ...imgs[idx], ...imageRec };
+                      imgs[idx] = { ...imgs[idx], ...normalizedRec };
                     } else {
-                      imgs.push(imageRec);
+                      imgs.push(normalizedRec);
                     }
                     imgs.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
                     return { ...c, images: imgs };
@@ -148,7 +179,7 @@ const SignageViewTest: React.FC = () => {
                   if (imageEv === "DELETE") {
                     return {
                       ...c,
-                      images: imgs.filter((im) => im.id !== imageRec.id),
+                      images: imgs.filter((im) => im.id !== normalizedRec.id),
                     };
                   }
                   fetchList();
